@@ -71,6 +71,72 @@ async function analyze() {
 
   }
 
+  else if (platform === "kalshi") {
+
+    try {
+
+      // Support both /markets/EVENT/TICKER and /events/EVENT URL shapes
+      let ticker
+      const marketMatch = url.match(/\/markets\/[^/?#]+\/([^/?#]+)/)
+      const eventMatch = url.match(/\/events\/([^/?#]+)/)
+
+      if (marketMatch) {
+        ticker = marketMatch[1]
+      } else if (eventMatch) {
+        ticker = eventMatch[1]
+      } else {
+        throw new Error("Invalid Kalshi URL. Expected: kalshi.com/markets/EVENT/TICKER or kalshi.com/events/EVENT")
+      }
+
+      const api = `/api/kalshi?ticker=${encodeURIComponent(ticker)}`
+
+      const res = await fetch(api)
+
+      const data = await res.json()
+
+      if (!res.ok) throw new Error(data.error || `API request failed with status ${res.status}`)
+
+      // Market URL response: { market: { title, yes_bid, no_bid, volume } }
+      // Event URL response: { event: { title, markets: [...] } }
+      if (data.market) {
+
+        const m = data.market
+        const yesPct = Math.round((m.yes_bid || 0) * 100)
+        const noPct = Math.round((m.no_bid || 0) * 100)
+
+        result.innerHTML = `
+          <h2>${m.title}</h2>
+          <p><b>Volume:</b> $${(m.volume || 0).toLocaleString()}</p>
+          <h3>Outcomes</h3>
+          <p>Yes — ${yesPct}%</p>
+          <p>No — ${noPct}%</p>
+        `
+
+      } else if (data.event) {
+
+        const ev = data.event
+        let html = `<h2>${ev.title}</h2><h3>Markets</h3>`
+
+        ;(ev.markets || []).forEach(m => {
+          const yesPct = Math.round((m.yes_bid || 0) * 100)
+          html += `<p><b>${m.title}</b> — Yes: ${yesPct}%</p>`
+        })
+
+        result.innerHTML = html
+
+      } else {
+        throw new Error("Unexpected response from Kalshi API.")
+      }
+
+    } catch (err) {
+
+      console.error("Kalshi fetch error:", err)
+      result.innerHTML = `Could not fetch Kalshi data: ${err.message}`
+
+    }
+
+  }
+
   else {
 
     result.innerHTML =
