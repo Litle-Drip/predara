@@ -42,6 +42,50 @@ const server = http.createServer((req, res) => {
     return
   }
 
+  if (parsed.pathname === "/api/kalshi") {
+    const apiKey = process.env.KALSHI_API_KEY
+    if (!apiKey) {
+      res.writeHead(503, { "Content-Type": "application/json" })
+      return res.end(JSON.stringify({ error: "Kalshi API key not configured. Set KALSHI_API_KEY env variable." }))
+    }
+
+    const ticker = parsed.query.ticker
+    if (!ticker) {
+      res.writeHead(400, { "Content-Type": "application/json" })
+      return res.end(JSON.stringify({ error: "Missing ticker" }))
+    }
+
+    const segments = ticker.split("-")
+    const isMarket = segments.length >= 3
+    const apiPath = isMarket
+      ? `/trade-api/v2/markets/${encodeURIComponent(ticker)}`
+      : `/trade-api/v2/events/${encodeURIComponent(ticker)}?with_nested_markets=true`
+
+    const options = {
+      hostname: "trading-api.kalshi.com",
+      path: apiPath,
+      method: "GET",
+      headers: { "Authorization": apiKey, "Content-Type": "application/json" },
+    }
+
+    https.request(options, (apiRes) => {
+      let body = ""
+      apiRes.on("data", (chunk) => { body += chunk })
+      apiRes.on("end", () => {
+        res.writeHead(apiRes.statusCode, {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        })
+        res.end(body)
+      })
+    }).on("error", (err) => {
+      res.writeHead(502, { "Content-Type": "application/json" })
+      res.end(JSON.stringify({ error: err.message }))
+    }).end()
+
+    return
+  }
+
   // Serve static files
   let filePath = parsed.pathname === "/" ? "/index.html" : parsed.pathname
   filePath = path.join(__dirname, filePath)
