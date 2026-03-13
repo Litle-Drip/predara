@@ -9,27 +9,25 @@ module.exports = (req, res) => {
   }
 
   const ticker = req.query.ticker
+  const type = req.query.type  // "market" or "event" — passed explicitly from the frontend
 
   if (!ticker) {
     res.status(400).json({ error: "Missing ticker" })
     return
   }
 
-  // Determine if this is a market ticker (e.g. FED-25MAR-T4.5) or event ticker (e.g. FED-25MAR)
-  // Market tickers have 3+ dash-separated segments; event tickers have 2
-  const segments = ticker.split("-")
-  const isMarket = segments.length >= 3
+  const isMarket = type === "market"
 
-  const path = isMarket
+  const apiPath = isMarket
     ? `/trade-api/v2/markets/${encodeURIComponent(ticker)}`
     : `/trade-api/v2/events/${encodeURIComponent(ticker)}?with_nested_markets=true`
 
   const options = {
     hostname: "trading-api.kalshi.com",
-    path,
+    path: apiPath,
     method: "GET",
     headers: {
-      "Authorization": apiKey,
+      "Authorization": `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
   }

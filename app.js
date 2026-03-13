@@ -76,19 +76,21 @@ async function analyze() {
     try {
 
       // Support both /markets/EVENT/TICKER and /events/EVENT URL shapes
-      let ticker
+      let ticker, type
       const marketMatch = url.match(/\/markets\/[^/?#]+\/([^/?#]+)/)
       const eventMatch = url.match(/\/events\/([^/?#]+)/)
 
       if (marketMatch) {
         ticker = marketMatch[1]
+        type = "market"
       } else if (eventMatch) {
         ticker = eventMatch[1]
+        type = "event"
       } else {
         throw new Error("Invalid Kalshi URL. Expected: kalshi.com/markets/EVENT/TICKER or kalshi.com/events/EVENT")
       }
 
-      const api = `/api/kalshi?ticker=${encodeURIComponent(ticker)}`
+      const api = `/api/kalshi?ticker=${encodeURIComponent(ticker)}&type=${type}`
 
       const res = await fetch(api)
 

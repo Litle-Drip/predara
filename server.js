@@ -50,13 +50,13 @@ const server = http.createServer((req, res) => {
     }
 
     const ticker = parsed.query.ticker
+    const type = parsed.query.type  // "market" or "event"
     if (!ticker) {
       res.writeHead(400, { "Content-Type": "application/json" })
       return res.end(JSON.stringify({ error: "Missing ticker" }))
     }
 
-    const segments = ticker.split("-")
-    const isMarket = segments.length >= 3
+    const isMarket = type === "market"
     const apiPath = isMarket
       ? `/trade-api/v2/markets/${encodeURIComponent(ticker)}`
       : `/trade-api/v2/events/${encodeURIComponent(ticker)}?with_nested_markets=true`
@@ -65,7 +65,7 @@ const server = http.createServer((req, res) => {
       hostname: "trading-api.kalshi.com",
       path: apiPath,
       method: "GET",
-      headers: { "Authorization": apiKey, "Content-Type": "application/json" },
+      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
     }
 
     https.request(options, (apiRes) => {
