@@ -93,31 +93,36 @@ async function analyze() {
 
       if (!res.ok) throw new Error(data.error || `API request failed with status ${res.status}`)
 
-      // Market URL response: { market: { title, yes_bid, no_bid, volume } }
       function renderMarket(m) {
-        // Use midpoint of bid/ask for best probability estimate
-        const yesBid = m.yes_bid || 0
-        const yesAsk = m.yes_ask || 0
+        // Prices come as decimal dollar strings e.g. "0.3400" — convert to percentage
+        const yesBid = parseFloat(m.yes_bid_dollars || 0)
+        const yesAsk = parseFloat(m.yes_ask_dollars || 0)
         const yesPct = yesAsk > 0
           ? Math.round((yesBid + yesAsk) / 2 * 100)
           : Math.round(yesBid * 100)
         const noPct = 100 - yesPct
 
-        const volume = (m.volume || 0).toLocaleString()
-        const openInterest = (m.open_interest || 0).toLocaleString()
+        // Use yes_sub_title as the team/outcome name when available
+        const label = m.yes_sub_title ? `${m.yes_sub_title} wins?` : m.title
+
+        // Volume and open interest are in fixed-point strings
+        const volume = Math.round(parseFloat(m.volume_fp || 0)).toLocaleString()
+        const openInterest = Math.round(parseFloat(m.open_interest_fp || 0)).toLocaleString()
+        const volume24h = Math.round(parseFloat(m.volume_24h_fp || 0)).toLocaleString()
+
         const status = m.status ? m.status.charAt(0).toUpperCase() + m.status.slice(1) : ""
-        const result = m.result ? `<p><b>Result:</b> ${m.result.toUpperCase()}</p>` : ""
+        const resultHtml = m.result ? `<p><b>Result:</b> ${m.result.toUpperCase()}</p>` : ""
         const closeTime = m.close_time
           ? `<p><b>Closes:</b> ${new Date(m.close_time).toLocaleString()}</p>`
           : ""
 
         return `
           <div style="margin: 16px 0; padding: 14px; background: #1a1a1a; border-radius: 8px; text-align: left;">
-            <p style="font-size:17px; font-weight:bold; margin:0 0 10px">${m.title}</p>
+            <p style="font-size:17px; font-weight:bold; margin:0 0 10px">${label}</p>
             <p>Yes — <b>${yesPct}%</b> &nbsp;|&nbsp; No — <b>${noPct}%</b></p>
-            <p><b>Volume:</b> ${volume} contracts &nbsp;|&nbsp; <b>Open Interest:</b> ${openInterest}</p>
-            <p><b>Status:</b> ${status}</p>
-            ${result}
+            <p><b>Volume:</b> ${volume} &nbsp;|&nbsp; <b>24h Volume:</b> ${volume24h}</p>
+            <p><b>Open Interest:</b> ${openInterest} &nbsp;|&nbsp; <b>Status:</b> ${status}</p>
+            ${resultHtml}
             ${closeTime}
           </div>
         `
@@ -125,12 +130,15 @@ async function analyze() {
 
       if (data.market) {
 
-        result.innerHTML = `<h2 style="margin-bottom:4px">${data.market.title}</h2>` + renderMarket(data.market)
+        const m = data.market
+        const label = m.yes_sub_title ? `${m.yes_sub_title} wins?` : m.title
+        result.innerHTML = `<h2 style="margin-bottom:4px">${label}</h2>` + renderMarket(m)
 
       } else if (data.event) {
 
         const ev = data.event
         let html = `<h2 style="margin-bottom:4px">${ev.title}</h2>`
+        if (ev.sub_title) html += `<p style="color:#aaa; margin-top:2px">${ev.sub_title}</p>`
         ;(ev.markets || []).forEach(m => { html += renderMarket(m) })
         result.innerHTML = html
 
