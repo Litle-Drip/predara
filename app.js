@@ -1,145 +1,148 @@
+const PLATFORMS = {
+  kalshi:     { label: "Kalshi",     accent: "#00C2CB" },
+  polymarket: { label: "Polymarket", accent: "#7B3FE4" },
+  gemini:     { label: "Gemini",     accent: "#00DCFA" },
+  coinbase:   { label: "Coinbase",   accent: "#1652F0" },
+}
+
+function platformBadge(platform) {
+  const p = PLATFORMS[platform]
+  if (!p) return ""
+  return `<span class="platform-badge" style="background:${p.accent}22; color:${p.accent}">${p.label}</span>`
+}
+
+function marketCard(label, yesPct, metaRows, accent) {
+  const noPct = 100 - yesPct
+  const statusClass = metaRows.statusRaw === "active" ? "status-active"
+    : metaRows.statusRaw === "closed" ? "status-closed"
+    : metaRows.statusRaw === "settled" ? "status-settled" : ""
+
+  const metaHtml = [
+    metaRows.volume    ? `<span><b>Volume</b> ${metaRows.volume}</span>` : "",
+    metaRows.volume24h ? `<span><b>24h Vol</b> ${metaRows.volume24h}</span>` : "",
+    metaRows.oi        ? `<span><b>Open Interest</b> ${metaRows.oi}</span>` : "",
+    metaRows.status    ? `<span><b>Status</b> <span class="${statusClass}">${metaRows.status}</span></span>` : "",
+    metaRows.result    ? `<span class="full"><b>Result</b> ${metaRows.result}</span>` : "",
+    metaRows.closes    ? `<span class="full"><b>Closes</b> ${metaRows.closes}</span>` : "",
+  ].filter(Boolean).join("")
+
+  return `
+    <div class="market-card" style="--accent:${accent}">
+      <div class="card-label">${label}</div>
+      <div class="card-probs">
+        <span class="yes">${yesPct}%</span>
+        <span style="color:#444; font-weight:300; margin:0 6px">/</span>
+        <span class="no">${noPct}% No</span>
+      </div>
+      <div class="prob-bar-wrap"><div class="prob-bar" style="width:${yesPct}%"></div></div>
+      <div class="card-meta">${metaHtml}</div>
+    </div>
+  `
+}
+
 async function analyze() {
-
   const url = document.getElementById("urlInput").value.trim()
-
   const result = document.getElementById("result")
-
   result.innerHTML = "Analyzing..."
 
   const lowerUrl = url.toLowerCase()
-
   let platform = "unknown"
-
-  if (lowerUrl.includes("kalshi")) platform = "kalshi"
+  if (lowerUrl.includes("kalshi"))     platform = "kalshi"
   if (lowerUrl.includes("polymarket")) platform = "polymarket"
-  if (lowerUrl.includes("gemini")) platform = "gemini"
-  if (lowerUrl.includes("coinbase")) platform = "coinbase"
+  if (lowerUrl.includes("gemini"))     platform = "gemini"
+  if (lowerUrl.includes("coinbase"))   platform = "coinbase"
+
+  const accent = (PLATFORMS[platform] || {}).accent || "#555"
 
   if (platform === "polymarket") {
 
     try {
 
-      // Extract slug and strip any query params or hash fragments
       const eventPart = url.split("/event/")[1]
       if (!eventPart) throw new Error("Invalid Polymarket URL. Expected: polymarket.com/event/<slug>")
       const slug = eventPart.split("?")[0].split("#")[0].replace(/\/$/, "")
 
-      // Use the local server proxy to avoid CORS/ad-blocker issues
-      const api = `/api/polymarket?slug=${encodeURIComponent(slug)}`
-
-      const res = await fetch(api)
-
+      const res = await fetch(`/api/polymarket?slug=${encodeURIComponent(slug)}`)
       if (!res.ok) throw new Error(`API request failed with status ${res.status}`)
-
       const data = await res.json()
 
-      // Response is an array — grab the first matching event
       const event = Array.isArray(data) ? data[0] : data
       if (!event) throw new Error("No event found for that URL.")
-
       const market = event.markets && event.markets[0]
       if (!market) throw new Error("No market data found in event.")
 
-      // outcomes and outcomePrices are JSON strings in the API response
-      const outcomes = typeof market.outcomes === "string"
-        ? JSON.parse(market.outcomes)
-        : market.outcomes
+      const outcomes = typeof market.outcomes === "string" ? JSON.parse(market.outcomes) : market.outcomes
+      const prices   = typeof market.outcomePrices === "string" ? JSON.parse(market.outcomePrices) : market.outcomePrices
 
-      const prices = typeof market.outcomePrices === "string"
-        ? JSON.parse(market.outcomePrices)
-        : market.outcomePrices
-
+      const vol = parseFloat(event.volume || 0)
       let html = `
-        <h2>${event.title}</h2>
-        <p><b>Volume:</b> $${parseFloat(event.volume || 0).toLocaleString()}</p>
-        <h3>Outcomes</h3>
+        <div class="result-header">
+          <h2>${event.title}</h2>
+          ${platformBadge(platform)}
+        </div>
+        <p class="result-sub">$${vol.toLocaleString(undefined, {maximumFractionDigits:0})} volume</p>
       `
-
       outcomes.forEach((name, i) => {
-        const price = prices ? parseFloat(prices[i]) : 0
-        html += `<p>${name} — ${Math.round(price * 100)}%</p>`
+        const pct = Math.round(parseFloat(prices ? prices[i] : 0) * 100)
+        html += marketCard(name, pct, {}, accent)
       })
 
       result.innerHTML = html
 
     } catch (err) {
-
       console.error("Polymarket fetch error:", err)
       result.innerHTML = `Could not fetch Polymarket data: ${err.message}`
-
     }
 
-  }
-
-  else if (platform === "kalshi") {
+  } else if (platform === "kalshi") {
 
     try {
 
-      // Extract the last path segment as the ticker (uppercase)
-      // The proxy will try market endpoint first, then event endpoint as fallback
       if (!url.includes("/markets/") && !url.includes("/events/")) {
         throw new Error("Invalid Kalshi URL. Expected: kalshi.com/markets/... or kalshi.com/events/...")
       }
       const cleanPath = url.split("?")[0].split("#")[0].replace(/\/$/, "")
       const ticker = cleanPath.split("/").pop().toUpperCase()
 
-      const api = `/api/kalshi?ticker=${encodeURIComponent(ticker)}`
-
-      const res = await fetch(api)
-
+      const res = await fetch(`/api/kalshi?ticker=${encodeURIComponent(ticker)}`)
       const data = await res.json()
-
-      console.log("Kalshi raw response:", JSON.stringify(data, null, 2))
-
       if (!res.ok) throw new Error(data.error || `API request failed with status ${res.status}`)
 
-      function renderMarket(m) {
-        // Prices come as decimal dollar strings e.g. "0.3400" — convert to percentage
+      function kalshiCard(m) {
         const yesBid = parseFloat(m.yes_bid_dollars || 0)
         const yesAsk = parseFloat(m.yes_ask_dollars || 0)
-        const yesPct = yesAsk > 0
-          ? Math.round((yesBid + yesAsk) / 2 * 100)
-          : Math.round(yesBid * 100)
-        const noPct = 100 - yesPct
-
-        // Use yes_sub_title as the team/outcome name when available
+        const yesPct = yesAsk > 0 ? Math.round((yesBid + yesAsk) / 2 * 100) : Math.round(yesBid * 100)
         const label = m.yes_sub_title ? `${m.yes_sub_title} wins?` : m.title
-
-        // Volume and open interest are in fixed-point strings
-        const volume = Math.round(parseFloat(m.volume_fp || 0)).toLocaleString()
-        const openInterest = Math.round(parseFloat(m.open_interest_fp || 0)).toLocaleString()
-        const volume24h = Math.round(parseFloat(m.volume_24h_fp || 0)).toLocaleString()
-
-        const status = m.status ? m.status.charAt(0).toUpperCase() + m.status.slice(1) : ""
-        const resultHtml = m.result ? `<p><b>Result:</b> ${m.result.toUpperCase()}</p>` : ""
-        const closeTime = m.close_time
-          ? `<p><b>Closes:</b> ${new Date(m.close_time).toLocaleString()}</p>`
-          : ""
-
-        return `
-          <div style="margin: 16px 0; padding: 14px; background: #1a1a1a; border-radius: 8px; text-align: left;">
-            <p style="font-size:17px; font-weight:bold; margin:0 0 10px">${label}</p>
-            <p>Yes — <b>${yesPct}%</b> &nbsp;|&nbsp; No — <b>${noPct}%</b></p>
-            <p><b>Volume:</b> ${volume} &nbsp;|&nbsp; <b>24h Volume:</b> ${volume24h}</p>
-            <p><b>Open Interest:</b> ${openInterest} &nbsp;|&nbsp; <b>Status:</b> ${status}</p>
-            ${resultHtml}
-            ${closeTime}
-          </div>
-        `
+        return marketCard(label, yesPct, {
+          volume:    Math.round(parseFloat(m.volume_fp    || 0)).toLocaleString(),
+          volume24h: Math.round(parseFloat(m.volume_24h_fp || 0)).toLocaleString(),
+          oi:        Math.round(parseFloat(m.open_interest_fp || 0)).toLocaleString(),
+          status:    m.status ? m.status.charAt(0).toUpperCase() + m.status.slice(1) : "",
+          statusRaw: m.status || "",
+          result:    m.result ? m.result.toUpperCase() : "",
+          closes:    m.close_time ? new Date(m.close_time).toLocaleString() : "",
+        }, accent)
       }
 
       if (data.market) {
-
         const m = data.market
-        const label = m.yes_sub_title ? `${m.yes_sub_title} wins?` : m.title
-        result.innerHTML = `<h2 style="margin-bottom:4px">${label}</h2>` + renderMarket(m)
+        result.innerHTML = `
+          <div class="result-header">
+            <h2>${m.yes_sub_title ? `${m.yes_sub_title} wins?` : m.title}</h2>
+            ${platformBadge(platform)}
+          </div>
+        ` + kalshiCard(m)
 
       } else if (data.event) {
-
         const ev = data.event
-        let html = `<h2 style="margin-bottom:4px">${ev.title}</h2>`
-        if (ev.sub_title) html += `<p style="color:#aaa; margin-top:2px">${ev.sub_title}</p>`
-        ;(ev.markets || []).forEach(m => { html += renderMarket(m) })
+        let html = `
+          <div class="result-header">
+            <h2>${ev.title}</h2>
+            ${platformBadge(platform)}
+          </div>
+          ${ev.sub_title ? `<p class="result-sub">${ev.sub_title}</p>` : ""}
+        `
+        ;(ev.markets || []).forEach(m => { html += kalshiCard(m) })
         result.innerHTML = html
 
       } else {
@@ -147,19 +150,11 @@ async function analyze() {
       }
 
     } catch (err) {
-
       console.error("Kalshi fetch error:", err)
       result.innerHTML = `Could not fetch Kalshi data: ${err.message}`
-
     }
 
+  } else {
+    result.innerHTML = "Platform detected but data fetching not added yet."
   }
-
-  else {
-
-    result.innerHTML =
-      "Platform detected but data fetching not added yet."
-
-  }
-
 }

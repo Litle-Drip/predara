@@ -5,49 +5,160 @@
   <link rel="icon" href="data:,">
 
   <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      font-family: Arial, sans-serif;
-      background: #111;
-      color: white;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0d0d0d;
+      color: #f0f0f0;
       display: flex;
       justify-content: center;
-      margin-top: 120px;
+      padding: 72px 20px 80px;
+      min-height: 100vh;
     }
 
     .container {
-      width: 600px;
-      text-align: center;
+      width: 100%;
+      max-width: 620px;
+    }
+
+    h1 {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.4px;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 28px;
     }
 
     input {
       width: 100%;
-      padding: 12px;
-      font-size: 16px;
-      margin-top: 20px;
-      border-radius: 6px;
-      border: none;
+      padding: 13px 16px;
+      font-size: 15px;
+      background: #1a1a1a;
+      color: #f0f0f0;
+      border: 1px solid #2e2e2e;
+      border-radius: 10px;
+      outline: none;
+      transition: border-color 0.2s;
+      margin-bottom: 10px;
     }
 
+    input:focus { border-color: #555; }
+    input::placeholder { color: #555; }
+
     button {
-      margin-top: 15px;
-      padding: 10px 20px;
-      font-size: 16px;
+      width: 100%;
+      padding: 13px;
+      font-size: 15px;
+      font-weight: 600;
       border: none;
-      border-radius: 6px;
+      border-radius: 10px;
       background: #ff6b4a;
       color: white;
       cursor: pointer;
+      transition: opacity 0.15s;
+      letter-spacing: 0.1px;
     }
 
-    button:hover {
-      opacity: 0.9;
+    button:hover { opacity: 0.88; }
+
+    #result { margin-top: 36px; font-size: 15px; }
+
+    /* --- Result layout --- */
+
+    .result-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 6px;
     }
 
-    #result {
-      margin-top: 30px;
+    .result-header h2 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      line-height: 1.2;
+    }
+
+    .platform-badge {
+      flex-shrink: 0;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      padding: 4px 9px;
+      border-radius: 5px;
+      margin-top: 3px;
+    }
+
+    .result-sub {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 16px;
+    }
+
+    /* --- Market card --- */
+
+    .market-card {
+      margin: 10px 0;
+      padding: 16px 18px;
+      background: #161616;
+      border-radius: 10px;
+      border-left: 3px solid var(--accent, #555);
+      text-align: left;
+    }
+
+    .card-label {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: #f0f0f0;
+    }
+
+    .card-probs {
       font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
     }
 
+    .card-probs .yes { color: var(--accent, #aaa); }
+    .card-probs .no  { color: #666; font-weight: 400; font-size: 15px; }
+
+    .prob-bar-wrap {
+      background: #252525;
+      border-radius: 4px;
+      height: 6px;
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+
+    .prob-bar {
+      height: 100%;
+      background: var(--accent, #555);
+      border-radius: 4px;
+    }
+
+    .card-meta {
+      font-size: 13px;
+      color: #666;
+      line-height: 2;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0 12px;
+    }
+
+    .card-meta b { color: #bbb; }
+    .card-meta .full { grid-column: 1 / -1; }
+
+    .status-active   { color: #4ade80; }
+    .status-closed   { color: #f87171; }
+    .status-settled  { color: #94a3b8; }
   </style>
 
 </head>
@@ -56,16 +167,14 @@
 
 <div class="container">
 
-<h1>Prediction Market Analyzer</h1>
+  <h1>Prediction Market Analyzer</h1>
+  <p class="subtitle">Paste a Kalshi, Polymarket, Gemini, or Coinbase market URL</p>
 
-<input
-  id="urlInput"
-  placeholder="Paste a Kalshi, Polymarket, Gemini, or Coinbase market URL"
-/>
+  <input id="urlInput" placeholder="https://kalshi.com/markets/..." />
 
-<button onclick="analyze()">Analyze</button>
+  <button onclick="analyze()">Analyze</button>
 
-<div id="result"></div>
+  <div id="result"></div>
 
 </div>
 
