@@ -42,7 +42,7 @@ module.exports = (req, res) => {
   }
 
   const options = {
-    hostname: "trading-api.kalshi.com",
+    hostname: "api.elections.kalshi.com",
     path: apiPath,
     method: "GET",
     headers: {
