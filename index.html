@@ -1,203 +1,309 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Prediction Market Analyzer</title>
+  <title>Market Intelligence</title>
   <link rel="icon" href="data:,">
-
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #131310;
+      --card:    #1c1c17;
+      --border:  #2a2924;
+      --text:    #d4d4c4;
+      --muted:   #5a584a;
+      --orange:  #e05530;
+      --green:   #22c55e;
+      --red:     #ef4444;
+    }
 
     body {
-      font-family: system-ui, -apple-system, sans-serif;
-      background: #0d0d0d;
-      color: #f0f0f0;
-      display: flex;
-      justify-content: center;
-      padding: 72px 20px 80px;
+      font-family: 'Courier New', Courier, monospace;
+      background: var(--bg);
+      color: var(--text);
       min-height: 100vh;
+      padding: 40px 24px 80px;
     }
 
-    .container {
-      width: 100%;
-      max-width: 620px;
-    }
+    .app { max-width: 1100px; margin: 0 auto; }
 
-    h1 {
-      font-size: 26px;
-      font-weight: 700;
-      letter-spacing: -0.4px;
-      margin-bottom: 6px;
-    }
-
-    .subtitle {
-      color: #666;
-      font-size: 14px;
-      margin-bottom: 28px;
-    }
-
-    input {
-      width: 100%;
-      padding: 13px 16px;
-      font-size: 15px;
-      background: #1a1a1a;
-      color: #f0f0f0;
-      border: 1px solid #2e2e2e;
-      border-radius: 10px;
-      outline: none;
-      transition: border-color 0.2s;
-      margin-bottom: 10px;
-    }
-
-    input:focus { border-color: #555; }
-    input::placeholder { color: #555; }
-
-    button {
-      width: 100%;
-      padding: 13px;
-      font-size: 15px;
-      font-weight: 600;
-      border: none;
-      border-radius: 10px;
-      background: #ff6b4a;
-      color: white;
-      cursor: pointer;
-      transition: opacity 0.15s;
-      letter-spacing: 0.1px;
-    }
-
-    button:hover { opacity: 0.88; }
-
-    #result { margin-top: 36px; font-size: 15px; }
-
-    /* --- Result layout --- */
-
-    .result-header {
+    /* ── App header ── */
+    .app-header {
       display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 6px;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 36px;
     }
-
-    .result-header h2 {
+    .app-logo {
+      color: var(--orange);
+      font-size: 22px;
+      line-height: 1;
+    }
+    .app-title {
       font-size: 22px;
       font-weight: 700;
+      color: #f0f0e4;
       letter-spacing: -0.3px;
-      line-height: 1.2;
     }
-
-    .platform-badge {
-      flex-shrink: 0;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1.2px;
-      text-transform: uppercase;
-      padding: 4px 9px;
-      border-radius: 5px;
+    .app-subtitle {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 1.6px;
       margin-top: 3px;
     }
 
-    .result-sub {
-      font-size: 13px;
-      color: #666;
-      margin-bottom: 16px;
-    }
-
-    /* --- Market card --- */
-
-    .market-card {
-      margin: 10px 0;
-      padding: 16px 18px;
-      background: #161616;
-      border-radius: 10px;
-      border-left: 3px solid var(--accent, #555);
-      text-align: left;
-    }
-
-    .card-label {
-      font-size: 15px;
-      font-weight: 600;
-      margin-bottom: 10px;
-      color: #f0f0f0;
+    /* ── Search row ── */
+    .search-row {
       display: flex;
-      align-items: center;
-      gap: 8px;
+      gap: 12px;
+      margin-bottom: 32px;
     }
-
-    .price-change {
+    .search-row input {
+      flex: 1;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 13px;
+      padding: 14px 18px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-row input:focus { border-color: #444; }
+    .search-row input::placeholder { color: var(--muted); }
+    .search-row button {
+      background: var(--orange);
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      cursor: pointer;
+      font-family: inherit;
       font-size: 12px;
-      font-weight: 600;
-      padding: 2px 6px;
-      border-radius: 4px;
-    }
-
-    .card-probs {
-      font-size: 20px;
       font-weight: 700;
-      margin-bottom: 8px;
+      letter-spacing: 1.5px;
+      padding: 14px 28px;
+      transition: opacity 0.15s;
+      white-space: nowrap;
     }
+    .search-row button:hover { opacity: 0.88; }
 
-    .card-rules {
-      font-size: 12px;
-      color: #555;
-      margin-top: 12px;
-      padding-top: 10px;
-      border-top: 1px solid #222;
-      line-height: 1.6;
-    }
-
-    .card-probs .yes { color: var(--accent, #aaa); }
-    .card-probs .no  { color: #666; font-weight: 400; font-size: 15px; }
-
-    .prob-bar-wrap {
-      background: #252525;
-      border-radius: 4px;
-      height: 6px;
-      margin-bottom: 14px;
+    /* ── Section card ── */
+    .mi-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 10px;
       overflow: hidden;
     }
 
-    .prob-bar {
+    /* ── Event header ── */
+    .event-head { padding: 22px 26px 24px; }
+    .event-tags {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      font-size: 11px;
+      letter-spacing: 1px;
+    }
+    .tag-platform {
+      background: var(--orange);
+      color: #fff;
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-weight: 700;
+      font-size: 10px;
+    }
+    .tag-cat { color: var(--muted); }
+    .tag-status { display: flex; align-items: center; gap: 5px; }
+    .dot-green { color: var(--green); }
+    .dot-red   { color: var(--red); }
+    .dot-muted { color: var(--muted); }
+    .event-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #f0f0e4;
+      margin-bottom: 10px;
+      letter-spacing: -0.2px;
+    }
+    .event-desc {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.7;
+      max-width: 820px;
+    }
+
+    /* ── Outcomes section ── */
+    .section-label {
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      padding: 16px 26px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .outcome-row {
+      padding: 18px 26px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .outcome-row:last-child { border-bottom: none; }
+    .outcome-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 6px;
+    }
+    .outcome-name {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+    .outcome-sub {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 3px;
+      line-height: 1.5;
+    }
+    .outcome-right {
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+      flex-shrink: 0;
+      margin-left: 20px;
+    }
+    .outcome-ml {
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+    }
+    .outcome-pct {
+      font-size: 26px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .bar-wrap {
+      height: 4px;
+      background: #2a2924;
+      border-radius: 2px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+    .bar-fill {
       height: 100%;
-      background: var(--accent, #555);
-      border-radius: 4px;
+      border-radius: 2px;
+      transition: width 0.5s ease;
     }
 
-    .card-meta {
-      font-size: 13px;
-      color: #666;
-      line-height: 2;
+    /* ── Stats grid ── */
+    .stats-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0 12px;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px 22px 20px;
+    }
+    .stat-label {
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+    .stat-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: #f0f0e4;
+      letter-spacing: -0.3px;
+    }
+    .stat-dash {
+      width: 24px;
+      height: 2px;
+      background: var(--border);
+      margin-top: 4px;
     }
 
-    .card-meta b { color: #bbb; }
-    .card-meta .full { grid-column: 1 / -1; }
+    /* ── Timeline / rules rows ── */
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 13px 26px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-key { color: var(--muted); }
+    .info-val { color: var(--text); text-align: right; max-width: 60%; }
 
-    .status-active   { color: #4ade80; }
-    .status-closed   { color: #f87171; }
-    .status-settled  { color: #94a3b8; }
+    /* ── Numbered list ── */
+    .num-list { padding: 10px 26px 18px; }
+    .num-row {
+      display: flex;
+      gap: 16px;
+      padding: 10px 0;
+      font-size: 12px;
+      line-height: 1.6;
+      border-bottom: 1px solid var(--border);
+    }
+    .num-row:last-child { border-bottom: none; }
+    .num-idx {
+      color: var(--orange);
+      font-size: 10px;
+      flex-shrink: 0;
+      padding-top: 2px;
+      letter-spacing: 0.5px;
+    }
+    .num-text { color: var(--text); }
+
+    /* ── Footer ── */
+    .footer {
+      margin-top: 48px;
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .footer .dot-sm { font-size: 8px; color: var(--orange); }
+
+    /* ── Loading / error ── */
+    .mi-loading, .mi-error {
+      padding: 40px 26px;
+      font-size: 13px;
+      color: var(--muted);
+      letter-spacing: 1px;
+    }
+    .mi-error { color: var(--red); }
   </style>
-
 </head>
-
 <body>
 
-<div class="container">
+<div class="app">
 
-  <h1>Prediction Market Analyzer</h1>
-  <p class="subtitle">Paste a Kalshi, Polymarket, Gemini, or Coinbase market URL</p>
+  <div class="app-header">
+    <div class="app-logo">✦</div>
+    <div>
+      <div class="app-title">Market Intelligence</div>
+      <div class="app-subtitle">PREDICTION ANALYZER · CLAUDE BY ANTHROPIC</div>
+    </div>
+  </div>
 
-  <input id="urlInput" placeholder="https://kalshi.com/markets/..." />
-
-  <button onclick="analyze()">Analyze</button>
+  <div class="search-row">
+    <input id="urlInput" placeholder="https://kalshi.com/markets/... or polymarket.com/event/..." />
+    <button onclick="analyze()">ANALYZE ↗</button>
+  </div>
 
   <div id="result"></div>
+
+  <div class="footer"><span class="dot-sm">●</span> CLAUDE · ANTHROPIC · 2026</div>
 
 </div>
 
 <script src="app.js"></script>
-
 </body>
 </html>
