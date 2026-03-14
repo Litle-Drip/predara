@@ -31,6 +31,33 @@
       --orange:  #d94f20;
       --green:   #22c55e;
       --red:     #ef4444;
+      /* Extended tokens for light/dark parity */
+      --text-bright:   #f2f0e6;
+      --text-mid:      #d8d6cc;
+      --card-hover:    rgba(255,255,255,0.02);
+      --bar-bg:        #252420;
+      --tag-bg:        rgba(255,255,255,0.04);
+      --rule-bg:       rgba(255,255,255,0.03);
+      --sim-result-bg: rgba(255,255,255,0.02);
+      --tooltip-bg:    #0e0d0b;
+    }
+
+    body.light {
+      --bg:      #f5f3ee;
+      --card:    #ffffff;
+      --border:  #dddbd0;
+      --text:    #3a3830;
+      --muted:   #7a7868;
+      --green:   #16a34a;
+      --red:     #dc2626;
+      --text-bright:   #1a1916;
+      --text-mid:      #2a2820;
+      --card-hover:    rgba(0,0,0,0.03);
+      --bar-bg:        #e8e5dc;
+      --tag-bg:        rgba(0,0,0,0.06);
+      --rule-bg:       rgba(0,0,0,0.04);
+      --sim-result-bg: rgba(0,0,0,0.04);
+      --tooltip-bg:    #f0ede4;
     }
 
     body {
@@ -59,7 +86,7 @@
     .app-title {
       font-size: 22px;
       font-weight: 500;
-      color: #d8d6cc;
+      color: var(--text-mid);
       letter-spacing: -0.2px;
     }
     .app-subtitle {
@@ -147,7 +174,7 @@
     }
     .tag-topic {
       color: var(--muted);
-      background: rgba(255,255,255,0.04);
+      background: var(--tag-bg);
       padding: 3px 8px;
       border-radius: 3px;
       font-size: 9px;
@@ -160,7 +187,7 @@
     .event-title {
       font-size: 22px;
       font-weight: 600;
-      color: #f2f0e6;
+      color: var(--text-bright);
       margin-bottom: 12px;
       letter-spacing: -0.2px;
       line-height: 1.3;
@@ -169,8 +196,8 @@
     }
     .resolution-rule {
       font-size: 12px;
-      color: #d8d6cc;
-      background: rgba(255,255,255,0.03);
+      color: var(--text-mid);
+      background: var(--rule-bg);
       border-left: 3px solid var(--orange);
       padding: 10px 16px;
       margin-bottom: 14px;
@@ -198,7 +225,7 @@
       transition: background 0.15s;
     }
     .outcome-row:last-child { border-bottom: none; }
-    .outcome-row:hover { background: rgba(255,255,255,0.02); }
+    .outcome-row:hover { background: var(--card-hover); }
     .outcome-top {
       display: flex;
       justify-content: space-between;
@@ -212,7 +239,7 @@
     }
     .outcome-sub {
       font-size: 12px;
-      color: #b8b6a8;
+      color: var(--muted);
       margin-top: 4px;
       line-height: 1.6;
     }
@@ -254,7 +281,7 @@
     .outcome-meta span { white-space: nowrap; }
     .bar-wrap {
       height: 8px;
-      background: #252420;
+      background: var(--bar-bg);
       border-radius: 3px;
       margin-top: 14px;
       overflow: hidden;
@@ -287,7 +314,7 @@
     .stat-value {
       font-size: 20px;
       font-weight: 600;
-      color: #d8d6cc;
+      color: var(--text-mid);
       letter-spacing: -0.5px;
     }
     .stat-dash {
@@ -342,7 +369,7 @@
       padding: 16px 32px 24px;
       font-size: 14px;
       line-height: 1.8;
-      color: #e8e6dc;
+      color: var(--text-bright);
       letter-spacing: 0.1px;
     }
 
@@ -359,7 +386,7 @@
       margin-bottom: 18px;
     }
     .bet-sim-label { letter-spacing: 0.2px; }
-    .bet-sim-label strong { color: #f2f0e6; }
+    .bet-sim-label strong { color: var(--text-bright); }
     .bet-sim-dollar {
       color: var(--orange);
       font-size: 16px;
@@ -369,7 +396,7 @@
       background: var(--bg);
       border: 1px solid var(--border);
       border-radius: 4px;
-      color: #f2f0e6;
+      color: var(--text-bright);
       font-family: inherit;
       font-size: 16px;
       font-weight: 600;
@@ -381,7 +408,7 @@
     .bet-sim-input:focus { border-color: var(--orange); }
     .bet-sim-input::-webkit-inner-spin-button { opacity: 0.3; }
     .bet-sim-results {
-      background: rgba(255,255,255,0.02);
+      background: var(--sim-result-bg);
       border-radius: 6px;
       padding: 16px 20px;
     }
@@ -390,8 +417,8 @@
       line-height: 1.8;
       color: var(--text);
     }
-    .bet-sim-win strong { color: #f2f0e6; }
-    .bet-sim-lose strong { color: #f2f0e6; }
+    .bet-sim-win strong { color: var(--text-bright); }
+    .bet-sim-lose strong { color: var(--text-bright); }
 
     /* ── Tooltips ── */
     .tip {
@@ -405,7 +432,7 @@
       bottom: calc(100% + 8px);
       left: 50%;
       transform: translateX(-50%);
-      background: #0e0d0b;
+      background: var(--tooltip-bg);
       border: 1px solid var(--border);
       border-radius: 4px;
       color: var(--text);
@@ -452,6 +479,22 @@
     .val-amber { color: #f59e0b; }
     .val-red   { color: var(--red); }
     .val-muted { color: var(--muted); }
+
+    /* ── Theme toggle ── */
+    .theme-toggle {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 15px;
+      line-height: 1;
+      padding: 7px 11px;
+      margin-left: auto;
+      transition: border-color 0.2s, color 0.2s;
+      flex-shrink: 0;
+    }
+    .theme-toggle:hover { border-color: var(--orange); color: var(--orange); }
 
     /* ── Footer ── */
     .footer {
@@ -606,6 +649,7 @@
       <div class="app-title">Predara</div>
       <div class="app-subtitle">PREDICTION MARKET ANALYZER</div>
     </div>
+    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light/dark mode">☾</button>
   </div>
 
   <div class="search-row">
@@ -620,5 +664,19 @@
 </div>
 
 <script src="app.js"></script>
+<script>
+  (function () {
+    if (localStorage.getItem('predara-theme') === 'light') {
+      document.body.classList.add('light')
+      document.getElementById('themeToggle').textContent = '☀'
+    }
+  })()
+
+  function toggleTheme() {
+    const isLight = document.body.classList.toggle('light')
+    localStorage.setItem('predara-theme', isLight ? 'light' : 'dark')
+    document.getElementById('themeToggle').textContent = isLight ? '☀' : '☾'
+  }
+</script>
 </body>
 </html>
