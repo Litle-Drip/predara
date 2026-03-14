@@ -315,8 +315,8 @@ function renderKalshiEvent(ev, accent) {
   const eventTitle = (ev.title || ev.event_ticker || "").replace(/[?!.]+$/, "").trim()
   const eventSubTitle = ev.sub_title || ""
 
-  // Resolution — find the winning market (result === "yes") or any resolved market
-  const resolvedMarket = sorted.find(m => m.result === "yes") || sorted.find(m => m.result)
+  // Resolution — only show banner for explicitly settled yes/no results
+  const resolvedMarket = sorted.find(m => m.result === "yes") || sorted.find(m => m.result === "no")
   const resolution  = resolvedMarket?.result || ""
   const expValue    = resolvedMarket?.expiration_value || first.expiration_value || ""
   const resolvedBanner = resolution
