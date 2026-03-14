@@ -119,16 +119,30 @@ function renderKalshiEvent(ev, accent) {
 
   // Event meta
   const status     = first.status || "active"
-  const statusDot  = status === "active" ? "dot-green" : status === "closed" ? "dot-red" : "dot-muted"
-  const statusText = status.toUpperCase()
   const category   = ev.product_metadata?.competition || ev.category || "Markets"
 
   // Resolution — find the winning market (result === "yes") or any resolved market
   const resolvedMarket = sorted.find(m => m.result === "yes") || sorted.find(m => m.result)
   const resolution  = resolvedMarket?.result || ""
   const expValue    = resolvedMarket?.expiration_value || first.expiration_value || ""
+
+  // Status badge — override to RESOLVED when market has a result (Kalshi still returns status:"active")
+  const effectiveStatus = resolution ? "resolved" : status
+  const statusClass = effectiveStatus === "resolved" ? "tag-status-resolved"
+    : (effectiveStatus === "active" || effectiveStatus === "open") ? "tag-status-active"
+    : "tag-status-closed"
+  const statusDot = effectiveStatus === "resolved" ? "dot-red"
+    : (effectiveStatus === "active" || effectiveStatus === "open") ? "dot-green" : "dot-muted"
+  const statusText = effectiveStatus.toUpperCase()
+
   const resolvedBanner = resolution
-    ? `<div class="resolved-banner resolved-${resolution}">✓ RESOLVED · ${resolution.toUpperCase()}${expValue ? " · " + expValue : ""}</div>`
+    ? `<div class="resolved-banner resolved-${resolution}">
+        <span class="res-icon">${resolution === "yes" ? "✓" : "✕"}</span>
+        <div>
+          <div class="res-label">RESOLVED</div>
+          <div class="res-value">${resolution.toUpperCase()}${expValue ? " — " + esc(expValue) : ""}</div>
+        </div>
+       </div>`
     : ""
 
   // Description: first sentence of rules_secondary
@@ -192,7 +206,7 @@ function renderKalshiEvent(ev, accent) {
         <div class="event-tags">
           <span class="tag-platform">${esc(PLATFORMS.kalshi.label)}</span>
           <span class="tag-cat">${esc(category.toUpperCase())}</span>
-          <span class="tag-status">
+          <span class="tag-status ${statusClass}">
             <span class="${statusDot}">●</span> ${esc(statusText)}
           </span>
         </div>
@@ -233,6 +247,7 @@ function renderKalshiEvent(ev, accent) {
 }
 
 function renderPolymarketEvent(event, markets, accent) {
+  const statusClass = event.closed ? "tag-status-closed" : "tag-status-active"
   const statusDot  = event.closed ? "dot-red" : "dot-green"
   const statusText = event.closed ? "CLOSED" : "OPEN"
 
@@ -264,7 +279,7 @@ function renderPolymarketEvent(event, markets, accent) {
       <div class="event-head">
         <div class="event-tags">
           <span class="tag-platform" style="background:${accent}">${esc(PLATFORMS.polymarket.label)}</span>
-          <span class="tag-status"><span class="${statusDot}">●</span> ${esc(statusText)}</span>
+          <span class="tag-status ${statusClass}"><span class="${statusDot}">●</span> ${esc(statusText)}</span>
         </div>
         <div class="event-title">${esc(event.title)}</div>
         ${event.description ? `<div class="event-desc">${esc(event.description)}</div>` : ""}
