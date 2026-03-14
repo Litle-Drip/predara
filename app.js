@@ -5,7 +5,18 @@ const PLATFORMS = {
   coinbase:   { label: "COINBASE",   accent: "#1652F0" },
 }
 
-// Escape user-supplied data before injecting into HTML to prevent XSS
+const GLOSSARY = {
+  "VOLUME TRADED":    "Total dollars that have changed hands since this market opened.",
+  "24H VOLUME":       "Dollars traded in the last 24 hours — measures current activity.",
+  "LIQUIDITY":        "How easy it is to enter or exit without moving the price.",
+  "OPEN INTEREST":    "Total value of all outstanding positions not yet settled.",
+  "COMMENTS":         "Number of comments from traders discussing this market.",
+  "BREAK-EVEN":       "The minimum win probability needed to profit at the current ask price.",
+  "EXPECTED VALUE":   "Average profit per $1 bet. Positive = good value vs market price.",
+  "KELLY CRITERION":  "Optimal bet size as % of bankroll to maximize long-term growth.",
+  "SPREAD QUALITY":   "Bid-ask gap as % of midpoint. Lower = cheaper to trade.",
+}
+
 function esc(str) {
   return String(str == null ? "" : str)
     .replace(/&/g, "&amp;")
@@ -13,6 +24,12 @@ function esc(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;")
+}
+
+function tip(text, key) {
+  const def = GLOSSARY[key || text]
+  if (!def) return esc(text)
+  return `<span class="tip" tabindex="0" data-tip="${esc(def)}">${esc(text)}</span>`
 }
 
 function toMoneyline(pct) {
@@ -44,11 +61,71 @@ function fmtNum(val) {
   return n > 0 ? n.toLocaleString() : null
 }
 
+function fmtTimeRemaining(iso) {
+  if (!iso || typeof iso !== "string" || iso.startsWith("0001")) return null
+  const d = new Date(iso)
+  if (isNaN(d)) return null
+  const ms = d - Date.now()
+  if (ms <= 0) return { text: "CLOSED", urgency: "high" }
+  const hrs = Math.floor(ms / 3600000)
+  const days = Math.floor(hrs / 24)
+  const remHrs = hrs % 24
+  let text
+  if (days > 0) text = `CLOSES IN ${days} DAY${days > 1 ? "S" : ""}${remHrs > 0 ? ` ${remHrs} HR${remHrs > 1 ? "S" : ""}` : ""}`
+  else if (hrs > 0) text = `CLOSES IN ${hrs} HR${hrs > 1 ? "S" : ""}`
+  else text = `CLOSES IN < 1 HR`
+  const urgency = days >= 7 ? "low" : days >= 1 ? "med" : "high"
+  return { text, urgency }
+}
+
+function calcAnalyticsRow(label, prob, ask, bid) {
+  if (!Number.isFinite(prob) || prob <= 0 || prob >= 1) return null
+  if (!Number.isFinite(ask) || ask <= 0 || ask >= 1) return null
+  const breakEven = (ask * 100).toFixed(1)
+  const ev = ((prob - ask) / ask * 100).toFixed(1)
+  const mid = Number.isFinite(bid) ? (bid + ask) / 2 : ask
+  const spread = mid > 0 && Number.isFinite(bid) ? ((ask - bid) / mid * 100).toFixed(1) : null
+  let kelly = null
+  const b = (1 - ask) / ask
+  if (b > 0) {
+    const k = (prob * b - (1 - prob)) / b
+    kelly = Math.min(Math.max(k * 100, 0), 25).toFixed(1)
+  }
+  return { label, breakEven, ev: parseFloat(ev), spread: spread !== null ? parseFloat(spread) : null, kelly: kelly !== null ? parseFloat(kelly) : null }
+}
+
+function analyticsCard(rows) {
+  if (!rows || !rows.length) return ""
+  const lines = rows.map(r => {
+    const parts = []
+    const beClass = "val-muted"
+    parts.push(`<div class="info-row"><span class="info-key">${tip("BREAK-EVEN")}</span><span class="info-val ${beClass}">${r.breakEven}%</span></div>`)
+    const evClass = r.ev > 0 ? "val-green" : r.ev < 0 ? "val-red" : "val-muted"
+    parts.push(`<div class="info-row"><span class="info-key">${tip("EXPECTED VALUE")}</span><span class="info-val ${evClass}">${r.ev > 0 ? "+" : ""}${r.ev}%</span></div>`)
+    if (r.kelly !== null) {
+      parts.push(`<div class="info-row"><span class="info-key">${tip("KELLY CRITERION")}</span><span class="info-val val-muted">${r.kelly}%</span></div>`)
+    }
+    if (r.spread !== null) {
+      const spClass = r.spread < 3 ? "val-green" : r.spread < 8 ? "val-amber" : "val-red"
+      parts.push(`<div class="info-row"><span class="info-key">${tip("SPREAD QUALITY")}</span><span class="info-val ${spClass}">${r.spread}%</span></div>`)
+    }
+    if (rows.length > 1) {
+      return `<div class="info-row" style="border-bottom:none;padding-bottom:4px"><span class="info-key" style="color:#d8d6cc;font-weight:600">${esc(r.label)}</span></div>` + parts.join("")
+    }
+    return parts.join("")
+  }).join("")
+  return `
+    <div class="mi-card">
+      <div class="section-label">TRADER ANALYTICS</div>
+      ${lines}
+    </div>`
+}
+
 function statCard(label, value) {
   const inner = value
     ? `<div class="stat-value">${value}</div>`
     : `<div class="stat-dash"></div>`
-  return `<div class="stat-card"><div class="stat-label">${label}</div>${inner}</div>`
+  return `<div class="stat-card"><div class="stat-label">${tip(label)}</div>${inner}</div>`
 }
 
 // Only render a timeline row if the value is a real date (not "—")
@@ -232,6 +309,19 @@ function renderKalshiEvent(ev, accent) {
     ? first.rules_primary.split(/[.!?]\s/)[0].replace(/^If /, "Resolves YES if ").replace(/,\s*then the market resolves to Yes$/, "") + "."
     : ""
 
+  const timeLeft = fmtTimeRemaining(first.close_time)
+  const urgencyHtml = timeLeft
+    ? `<div class="urgency-banner urgency-${timeLeft.urgency}">⏱ ${esc(timeLeft.text)}</div>`
+    : ""
+
+  const analyticsRows = (isMultiOutcome ? sorted.slice(0, 3) : sorted.slice(0, 1)).map(m => {
+    const prob = parseFloat(m.last_price_dollars || 0)
+    const ask  = parseFloat(m.yes_ask_dollars || 0)
+    const bid  = parseFloat(m.yes_bid_dollars || 0)
+    return calcAnalyticsRow(m.yes_sub_title || "YES", prob, ask, bid)
+  }).filter(Boolean)
+  const analyticsHtml = analyticsCard(analyticsRows)
+
   return `
     <!-- Event header -->
     <div class="mi-card">
@@ -246,6 +336,7 @@ function renderKalshiEvent(ev, accent) {
         </div>
         ${resolvedBanner}
         <div class="event-title">${esc(eventTitle || eventSubTitle)}${eventTitle && eventSubTitle ? " — " + esc(eventSubTitle) : ""}</div>
+        ${urgencyHtml}
         ${resolutionRule ? `<div class="resolution-rule">${esc(resolutionRule)}</div>` : ""}
         ${desc ? `<div class="event-desc">${esc(desc)}</div>` : ""}
       </div>
@@ -256,6 +347,8 @@ function renderKalshiEvent(ev, accent) {
       <div class="section-label">OUTCOMES &amp; PROBABILITY</div>
       ${outcomesHtml}
     </div>
+
+    ${analyticsHtml}
 
     <!-- Stats -->
     <div class="stats-grid">
@@ -321,6 +414,25 @@ function renderPolymarketEvent(event, markets, accent) {
     .filter(t => t != null)
     .map(t => `<span class="tag-topic">${esc(String(t).toUpperCase())}</span>`).join("")
 
+  const timeLeft = fmtTimeRemaining(event.endDate)
+  const urgencyHtml = timeLeft
+    ? `<div class="urgency-banner urgency-${timeLeft.urgency}">⏱ ${esc(timeLeft.text)}</div>`
+    : ""
+
+  const polyAnalytics = markets.slice(0, 3).map(m => {
+    let prices
+    try { prices = typeof m.outcomePrices === "string" ? JSON.parse(m.outcomePrices) : m.outcomePrices } catch(e) { return null }
+    let outcomes
+    try { outcomes = typeof m.outcomes === "string" ? JSON.parse(m.outcomes) : m.outcomes } catch(e) { return null }
+    if (!prices || !Number.isFinite(parseFloat(prices[0])) || parseFloat(prices[0]) <= 0) return null
+    const prob = parseFloat(prices[0])
+    const ask = Number.isFinite(parseFloat(m.bestAsk)) ? parseFloat(m.bestAsk) : prob
+    const bid = Number.isFinite(parseFloat(m.bestBid)) ? parseFloat(m.bestBid) : prob
+    const label = outcomes && outcomes[0] ? String(outcomes[0]) : "YES"
+    return calcAnalyticsRow(label, prob, ask, bid)
+  }).filter(Boolean)
+  const analyticsHtml = analyticsCard(polyAnalytics)
+
   return `
     <div class="mi-card">
       <div class="event-head">
@@ -330,6 +442,7 @@ function renderPolymarketEvent(event, markets, accent) {
           <span class="tag-status"><span class="${statusDot}">●</span> ${esc(statusText)}</span>
         </div>
         <div class="event-title">${esc(event.title)}</div>
+        ${urgencyHtml}
         ${event.description ? `<div class="event-desc">${esc(event.description)}</div>` : ""}
       </div>
     </div>
@@ -338,6 +451,8 @@ function renderPolymarketEvent(event, markets, accent) {
       <div class="section-label">OUTCOMES &amp; PROBABILITY</div>
       ${outcomesHtml}
     </div>
+
+    ${analyticsHtml}
 
     <div class="stats-grid">
       ${statCard("VOLUME TRADED", totalVol ? `$${totalVol}` : null)}
