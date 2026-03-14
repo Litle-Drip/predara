@@ -384,7 +384,12 @@ function renderKalshiEvent(ev, accent) {
     ? `<span class="tag-exclusive">WINNER TAKES ALL</span>` : ""
 
   let betExplainerText = ""
-  if (!isMultiOutcome && first.rules_primary) {
+  if (!isMultiOutcome && markets.length === 2) {
+    // Two-sided matchup (e.g. team A vs team B) — explain both options clearly
+    const labelA = sorted[0]?.yes_sub_title || "one outcome"
+    const labelB = sorted[1]?.yes_sub_title || "the other outcome"
+    betExplainerText = `Pick a side: bet YES on ${labelA} if you think they win, or YES on ${labelB} if you think they win. Each contract pays $1 — only one side can resolve YES.`
+  } else if (!isMultiOutcome && first.rules_primary) {
     betExplainerText = first.rules_primary
       .split(/[.!?]\s/)[0]
       .replace(/^If /i, "You win if ")
