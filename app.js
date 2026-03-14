@@ -1,5 +1,5 @@
 const PLATFORMS = {
-  kalshi:     { label: "KALSHI",     accent: "#e05530" },
+  kalshi:     { label: "KALSHI",     accent: "#d94f20" },
   polymarket: { label: "POLYMARKET", accent: "#7B3FE4" },
   gemini:     { label: "GEMINI",     accent: "#00DCFA" },
   coinbase:   { label: "COINBASE",   accent: "#1652F0" },
@@ -51,6 +51,12 @@ function statCard(label, value) {
   return `<div class="stat-card"><div class="stat-label">${label}</div>${inner}</div>`
 }
 
+// Only render a timeline row if the value is a real date (not "—")
+function infoRow(key, val) {
+  if (!val || val === "—") return ""
+  return `<div class="info-row"><span class="info-key">${esc(key)}</span><span class="info-val">${esc(val)}</span></div>`
+}
+
 function numList(sentences) {
   return sentences.map((s, i) => `
     <div class="num-row">
@@ -87,12 +93,18 @@ function buildOutcomesHtml(rows) {
   const visible = rows.slice(0, 5)
   const hidden  = rows.slice(5)
   if (!hidden.length) return visible.join("")
+  const count = hidden.length
   return visible.join("") + `
     <div class="outcomes-overflow" style="display:none">${hidden.join("")}</div>
     <div class="show-more-row">
-      <button class="show-more-btn" onclick="this.closest('.show-more-row').previousElementSibling.style.display='block';this.closest('.show-more-row').style.display='none'">
-        + ${hidden.length} MORE  ↓
-      </button>
+      <button class="show-more-btn" data-open="false" onclick="
+        var btn = this;
+        var ov = btn.closest('.show-more-row').previousElementSibling;
+        var isOpen = btn.dataset.open === 'true';
+        ov.style.display = isOpen ? 'none' : 'block';
+        btn.dataset.open = !isOpen;
+        btn.textContent = isOpen ? '+ ${count} MORE  ↓' : '— COLLAPSE  ↑';
+      ">+ ${count} MORE  ↓</button>
     </div>`
 }
 
@@ -125,7 +137,7 @@ function renderKalshiEvent(ev, accent) {
   const desc = descRaw ? descRaw + "." : ""
 
   // Outcomes — top 5 visible, rest in show-more
-  const colors = ["#22c55e", "#ef4444", "#f59e0b", "#60a5fa"]
+  const colors = ["#22c55e", "#60a5fa", "#f59e0b", "#a78bfa", "#34d399", "#fb923c", "#38bdf8", "#f472b6"]
   const allRows = sorted.map((m, i) => {
     const lastPrice = parseFloat(m.last_price_dollars || 0)
     const yesBid    = parseFloat(m.yes_bid_dollars || 0)
@@ -152,11 +164,18 @@ function renderKalshiEvent(ev, accent) {
   const totalLiq   = fmtNum(markets.reduce((s, m) => s + parseFloat(m.liquidity_dollars || 0), 0))
   const totalOI    = fmtNum(markets.reduce((s, m) => s + parseFloat(m.open_interest_fp || 0), 0))
 
+
   // Timeline
-  const startDate    = fmtDate(first.open_time)
-  const endDate      = fmtDateTime(first.close_time)
-  const expDate      = fmtDateTime(first.expected_expiration_time)
+  const startDate     = fmtDate(first.open_time)
+  const endDate       = fmtDateTime(first.close_time)
+  const expDate       = fmtDateTime(first.expected_expiration_time)
   const canCloseEarly = first.can_close_early
+  const timelineRows  = [
+    infoRow("Start date", startDate),
+    infoRow("End / expiry", endDate),
+    infoRow("Resolution date", expDate),
+    canCloseEarly ? `<div class="info-row"><span class="info-key">${esc("Early close")}</span><span class="info-val">Possible</span></div>` : "",
+  ].join("")
 
   // Rules from rules_secondary, split into sentences
   const rulesRaw = first.rules_secondary || first.rules_primary || ""
@@ -191,20 +210,18 @@ function renderKalshiEvent(ev, accent) {
 
     <!-- Stats -->
     <div class="stats-grid">
-      ${statCard("VOLUME TRADED", totalVol)}
-      ${statCard("24H VOLUME", totalVol24)}
-      ${statCard("LIQUIDITY", totalLiq)}
-      ${statCard("OPEN INTEREST", totalOI)}
+      ${statCard("VOLUME TRADED", totalVol ? `$${totalVol}` : null)}
+      ${statCard("24H VOLUME", totalVol24 ? `$${totalVol24}` : null)}
+      ${statCard("LIQUIDITY", totalLiq ? `$${totalLiq}` : null)}
+      ${statCard("OPEN INTEREST", totalOI ? `$${totalOI}` : null)}
     </div>
 
+    ${timelineRows ? `
     <!-- Timeline -->
     <div class="mi-card">
       <div class="section-label">TIMELINE</div>
-      <div class="info-row"><span class="info-key">Start date</span><span class="info-val">${startDate}</span></div>
-      <div class="info-row"><span class="info-key">End / expiry</span><span class="info-val">${endDate}</span></div>
-      <div class="info-row"><span class="info-key">Expected resolution</span><span class="info-val">${expDate}</span></div>
-      ${canCloseEarly ? `<div class="info-row"><span class="info-key">Early close</span><span class="info-val">Possible</span></div>` : ""}
-    </div>
+      ${timelineRows}
+    </div>` : ""}
 
     ${ruleSentences.length ? `
     <!-- Rules -->
@@ -219,7 +236,7 @@ function renderPolymarketEvent(event, markets, accent) {
   const statusDot  = event.closed ? "dot-red" : "dot-green"
   const statusText = event.closed ? "CLOSED" : "OPEN"
 
-  const colors = ["#22c55e", "#ef4444", "#f59e0b", "#60a5fa"]
+  const colors = ["#22c55e", "#60a5fa", "#f59e0b", "#a78bfa", "#34d399", "#fb923c", "#38bdf8", "#f472b6"]
   const allPolyRows = []
   markets.forEach((market, idx) => {
     let outcomes, prices
@@ -234,6 +251,7 @@ function renderPolymarketEvent(event, markets, accent) {
       allPolyRows.push(outcomeRow(name, "", pct, colors[(idx + i) % colors.length]))
     })
   })
+  if (!allPolyRows.length) return `<div class="mi-error">No outcome data found for this market.</div>`
   const outcomesHtml = buildOutcomesHtml(allPolyRows)
 
   const first = markets[0] || {}
@@ -272,10 +290,21 @@ function renderPolymarketEvent(event, markets, accent) {
   `
 }
 
+function showError(msg) {
+  document.getElementById("result").innerHTML =
+    `<div class="mi-error"><span>${esc(msg)}</span><button class="retry-btn" onclick="document.getElementById('urlInput').select();document.getElementById('urlInput').focus()">TRY AGAIN ↺</button></div>`
+}
+
 async function analyze() {
   const url = document.getElementById("urlInput").value.trim()
   const result = document.getElementById("result")
-  result.innerHTML = `<div class="mi-loading">ANALYZING...</div>`
+
+  if (!url) {
+    showError("Paste a Kalshi or Polymarket URL to analyze.")
+    return
+  }
+
+  result.innerHTML = `<div class="mi-loading">ANALYZING</div>`
 
   const lowerUrl = url.toLowerCase()
   let platform = "unknown"
@@ -304,7 +333,7 @@ async function analyze() {
       result.innerHTML = renderPolymarketEvent(event, markets, accent)
     } catch (err) {
       console.error(err)
-      result.innerHTML = `<div class="mi-error">ERROR: ${err.message}</div>`
+      showError(`ERROR: ${err.message}`)
     }
 
   } else if (platform === "kalshi") {
@@ -337,10 +366,10 @@ async function analyze() {
       }
     } catch (err) {
       console.error(err)
-      result.innerHTML = `<div class="mi-error">ERROR: ${err.message}</div>`
+      showError(`ERROR: ${err.message}`)
     }
 
   } else {
-    result.innerHTML = `<div class="mi-error">PLATFORM NOT YET SUPPORTED · USE A KALSHI OR POLYMARKET URL</div>`
+    showError("Unrecognized URL · Paste a Kalshi or Polymarket link.")
   }
 }

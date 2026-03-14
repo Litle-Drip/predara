@@ -87,7 +87,7 @@
       outline: none;
       transition: border-color 0.2s;
     }
-    .search-row input:focus { border-color: #555; }
+    .search-row input:focus { border-color: var(--orange); }
     .search-row input::placeholder { color: var(--muted); }
     .search-row button {
       background: var(--orange);
@@ -110,7 +110,7 @@
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 8px;
-      margin-bottom: 10px;
+      margin-bottom: 16px;
       overflow: hidden;
     }
 
@@ -145,6 +145,8 @@
       margin-bottom: 12px;
       letter-spacing: -0.2px;
       line-height: 1.3;
+      overflow-wrap: break-word;
+      word-break: break-word;
     }
     .event-desc {
       font-size: 13px;
@@ -164,8 +166,10 @@
     .outcome-row {
       padding: 24px 32px 20px;
       border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
     }
     .outcome-row:last-child { border-bottom: none; }
+    .outcome-row:hover { background: rgba(255,255,255,0.02); }
     .outcome-top {
       display: flex;
       justify-content: space-between;
@@ -179,13 +183,13 @@
     }
     .outcome-sub {
       font-size: 12px;
-      color: #8a8878;
+      color: #b0ae9e;
       margin-top: 4px;
       line-height: 1.6;
     }
     .outcome-right {
       display: flex;
-      align-items: baseline;
+      align-items: center;
       gap: 18px;
       flex-shrink: 0;
       margin-left: 24px;
@@ -210,7 +214,7 @@
     .delta-up { color: var(--green); }
     .delta-dn { color: var(--red); }
     .bar-wrap {
-      height: 6px;
+      height: 8px;
       background: #252420;
       border-radius: 3px;
       margin-top: 14px;
@@ -227,7 +231,7 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 10px;
-      margin-bottom: 10px;
+      margin-bottom: 16px;
     }
     .stat-card {
       background: var(--card);
@@ -239,7 +243,7 @@
       font-size: 11px;
       letter-spacing: 2px;
       color: var(--muted);
-      margin-bottom: 18px;
+      margin-bottom: 8px;
     }
     .stat-value {
       font-size: 20px;
@@ -314,13 +318,13 @@
       margin-bottom: 16px;
     }
     .resolved-yes {
-      background: rgba(34, 197, 94, 0.1);
-      border: 1px solid rgba(34, 197, 94, 0.3);
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid rgba(34, 197, 94, 0.4);
       color: var(--green);
     }
     .resolved-no {
-      background: rgba(239, 68, 68, 0.1);
-      border: 1px solid rgba(239, 68, 68, 0.3);
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
       color: var(--red);
     }
 
@@ -331,26 +335,65 @@
     }
     .show-more-btn {
       background: none;
-      border: 1px solid var(--border);
+      border: 1px solid var(--orange);
       border-radius: 4px;
-      color: var(--muted);
+      color: var(--orange);
       cursor: pointer;
       font-family: inherit;
       font-size: 11px;
+      font-weight: 600;
       letter-spacing: 1.5px;
       padding: 8px 16px;
-      transition: border-color 0.15s, color 0.15s;
+      transition: background 0.15s;
     }
-    .show-more-btn:hover { border-color: var(--orange); color: var(--orange); }
+    .show-more-btn:hover { background: rgba(217, 79, 32, 0.1); }
 
     /* ── Loading / error ── */
     .mi-loading, .mi-error {
       padding: 48px 32px;
       font-size: 13px;
-      color: var(--muted);
       letter-spacing: 2px;
     }
-    .mi-error { color: var(--red); }
+    .mi-loading {
+      color: var(--muted);
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.35; }
+    }
+    .mi-error {
+      color: var(--red);
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .retry-btn {
+      background: none;
+      border: 1px solid var(--red);
+      border-radius: 4px;
+      color: var(--red);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      padding: 6px 14px;
+      transition: background 0.15s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .retry-btn:hover { background: rgba(239, 68, 68, 0.1); }
+
+    /* ── Empty state ── */
+    .empty-state {
+      padding: 48px 32px;
+      font-size: 13px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      line-height: 1.8;
+    }
 
     /* ── Mobile ── */
     @media (max-width: 640px) {
@@ -369,7 +412,7 @@
       .section-label { padding: 14px 18px 12px; }
 
       .outcome-row  { padding: 18px 18px 16px; }
-      .outcome-pct  { font-size: 34px; }
+      .outcome-pct  { font-size: 38px; }
       .outcome-name { font-size: 14px; }
       .outcome-right { gap: 12px; margin-left: 14px; }
 
@@ -398,11 +441,11 @@
   </div>
 
   <div class="search-row">
-    <input id="urlInput" placeholder="https://kalshi.com/markets/... or polymarket.com/event/..." />
+    <input id="urlInput" placeholder="Paste a Kalshi or Polymarket URL..." onkeydown="if(event.key==='Enter')analyze()" />
     <button onclick="analyze()">ANALYZE ↗</button>
   </div>
 
-  <div id="result"></div>
+  <div id="result"><div class="empty-state">Paste a Kalshi or Polymarket market URL above to analyze odds, volume, and trading data.</div></div>
 
   <div class="footer"><span class="dot-sm">●</span> PREDARA · EDISON LABS LLC · 2026</div>
 
