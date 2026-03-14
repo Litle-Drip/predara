@@ -45,8 +45,11 @@ function numList(sentences) {
     </div>`).join("")
 }
 
-function outcomeRow(label, sub, pct, color) {
+function outcomeRow(label, sub, pct, color, delta = null) {
   const ml = toMoneyline(pct)
+  const deltaHtml = delta !== null && delta !== 0
+    ? `<span class="outcome-delta ${delta > 0 ? 'delta-up' : 'delta-dn'}">${delta > 0 ? '▲' : '▼'} ${Math.abs(delta)}</span>`
+    : ""
   return `
     <div class="outcome-row">
       <div class="outcome-top">
@@ -57,6 +60,7 @@ function outcomeRow(label, sub, pct, color) {
         <div class="outcome-right">
           <span class="outcome-ml">${ml}</span>
           <span class="outcome-pct" style="color:${color}">${pct}%</span>
+          ${deltaHtml}
         </div>
       </div>
       <div class="bar-wrap">
@@ -65,13 +69,15 @@ function outcomeRow(label, sub, pct, color) {
     </div>`
 }
 
-function buildOutcomesHtml(visible, hidden) {
+function buildOutcomesHtml(rows) {
+  const visible = rows.slice(0, 5)
+  const hidden  = rows.slice(5)
   if (!hidden.length) return visible.join("")
   return visible.join("") + `
     <div class="outcomes-overflow" style="display:none">${hidden.join("")}</div>
     <div class="show-more-row">
       <button class="show-more-btn" onclick="this.closest('.show-more-row').previousElementSibling.style.display='block';this.closest('.show-more-row').style.display='none'">
-        + ${hidden.length} MORE UNDER 1.1%  ↓
+        + ${hidden.length} MORE  ↓
       </button>
     </div>`
 }
@@ -90,38 +96,51 @@ function renderKalshiEvent(ev, accent) {
   const statusText = status.toUpperCase()
   const category   = ev.product_metadata?.competition || ev.category || "Markets"
 
+  // Resolution — find the winning market (result === "yes") or any resolved market
+  const resolvedMarket = sorted.find(m => m.result === "yes") || sorted.find(m => m.result)
+  const resolution  = resolvedMarket?.result || ""
+  const expValue    = resolvedMarket?.expiration_value || first.expiration_value || ""
+  const resolvedBanner = resolution
+    ? `<div class="resolved-banner resolved-${resolution}">✓ RESOLVED · ${resolution.toUpperCase()}${expValue ? " · " + expValue : ""}</div>`
+    : ""
+
   // Description: first sentence of rules_secondary
   const desc = (first.rules_secondary || first.rules_primary || "")
     .split(/\.\s+/)[0].replace(/^The following market refers to/, "Prediction market on") + "."
 
-  // Outcomes
+  // Outcomes — top 5 visible, rest in show-more
   const colors = ["#22c55e", "#ef4444", "#f59e0b", "#60a5fa"]
-  const visibleKalshi = [], hiddenKalshi = []
-  sorted.forEach((m, i) => {
+  const allRows = sorted.map((m, i) => {
     const lastPrice = parseFloat(m.last_price_dollars || 0)
-    const yesBid = parseFloat(m.yes_bid_dollars || 0)
-    const yesAsk = parseFloat(m.yes_ask_dollars || 0)
+    const yesBid    = parseFloat(m.yes_bid_dollars || 0)
+    const yesAsk    = parseFloat(m.yes_ask_dollars || 0)
     const pct = lastPrice > 0
       ? Math.round(lastPrice * 100)
       : yesAsk > 0 ? Math.round((yesBid + yesAsk) / 2 * 100) : Math.round(yesBid * 100)
+
+    // Price movement delta vs previous close
+    const prevDollars = parseFloat(m.previous_price_dollars || (m.previous_price != null ? m.previous_price / 100 : 0))
+    const prevPct = prevDollars > 0 ? Math.round(prevDollars * 100) : null
+    const delta = prevPct !== null ? pct - prevPct : null
+
     const label = `${m.yes_sub_title} to win`
     const sub = (m.rules_primary || "")
       .replace(/^If /, "").replace(/, then the market resolves to Yes\.?$/, "")
-    const row = outcomeRow(label, sub, pct, colors[i] || "#aaa")
-    if (pct <= 1) hiddenKalshi.push(row)
-    else visibleKalshi.push(row)
+    return outcomeRow(label, sub, pct, colors[i] || "#aaa", delta)
   })
-  const outcomesHtml = buildOutcomesHtml(visibleKalshi, hiddenKalshi)
+  const outcomesHtml = buildOutcomesHtml(allRows)
 
   // Aggregate stats
-  const totalVol  = fmtNum(markets.reduce((s, m) => s + parseFloat(m.volume_fp || 0), 0))
-  const totalLiq  = fmtNum(markets.reduce((s, m) => s + parseFloat(m.liquidity_dollars || 0), 0))
-  const totalOI   = fmtNum(markets.reduce((s, m) => s + parseFloat(m.open_interest_fp || 0), 0))
+  const totalVol   = fmtNum(markets.reduce((s, m) => s + parseFloat(m.volume_fp || 0), 0))
+  const totalVol24 = fmtNum(markets.reduce((s, m) => s + parseFloat(m.volume_24h || m.volume_24h_fp || 0), 0))
+  const totalLiq   = fmtNum(markets.reduce((s, m) => s + parseFloat(m.liquidity_dollars || 0), 0))
+  const totalOI    = fmtNum(markets.reduce((s, m) => s + parseFloat(m.open_interest_fp || 0), 0))
 
   // Timeline
-  const startDate = fmtDate(first.open_time)
-  const endDate   = fmtDateTime(first.close_time)
-  const expDate   = fmtDateTime(first.expected_expiration_time)
+  const startDate    = fmtDate(first.open_time)
+  const endDate      = fmtDateTime(first.close_time)
+  const expDate      = fmtDateTime(first.expected_expiration_time)
+  const canCloseEarly = first.can_close_early
 
   // Rules from rules_secondary, split into sentences
   const rulesRaw = first.rules_secondary || first.rules_primary || ""
@@ -142,6 +161,7 @@ function renderKalshiEvent(ev, accent) {
             <span class="${statusDot}">●</span> ${statusText}
           </span>
         </div>
+        ${resolvedBanner}
         <div class="event-title">${ev.title}${ev.sub_title ? " — " + ev.sub_title : ""}</div>
         <div class="event-desc">${desc}</div>
       </div>
@@ -156,6 +176,7 @@ function renderKalshiEvent(ev, accent) {
     <!-- Stats -->
     <div class="stats-grid">
       ${statCard("VOLUME TRADED", totalVol)}
+      ${statCard("24H VOLUME", totalVol24)}
       ${statCard("LIQUIDITY", totalLiq)}
       ${statCard("OPEN INTEREST", totalOI)}
     </div>
@@ -166,6 +187,7 @@ function renderKalshiEvent(ev, accent) {
       <div class="info-row"><span class="info-key">Start date</span><span class="info-val">${startDate}</span></div>
       <div class="info-row"><span class="info-key">End / expiry</span><span class="info-val">${endDate}</span></div>
       <div class="info-row"><span class="info-key">Expected resolution</span><span class="info-val">${expDate}</span></div>
+      ${canCloseEarly ? `<div class="info-row"><span class="info-key">Early close</span><span class="info-val">Possible</span></div>` : ""}
     </div>
 
     ${ruleSentences.length ? `
@@ -182,18 +204,16 @@ function renderPolymarketEvent(event, markets, accent) {
   const statusText = event.closed ? "CLOSED" : "OPEN"
 
   const colors = ["#22c55e", "#ef4444", "#f59e0b", "#60a5fa"]
-  const visiblePoly = [], hiddenPoly = []
+  const allPolyRows = []
   markets.forEach((market, idx) => {
     const outcomes = typeof market.outcomes === "string" ? JSON.parse(market.outcomes) : market.outcomes
     const prices   = typeof market.outcomePrices === "string" ? JSON.parse(market.outcomePrices) : market.outcomePrices
     ;(outcomes || []).forEach((name, i) => {
       const pct = Math.round(parseFloat(prices ? prices[i] : 0) * 100)
-      const row = outcomeRow(name, "", pct, colors[(idx + i) % colors.length])
-      if (pct <= 1) hiddenPoly.push(row)
-      else visiblePoly.push(row)
+      allPolyRows.push(outcomeRow(name, "", pct, colors[(idx + i) % colors.length]))
     })
   })
-  const outcomesHtml = buildOutcomesHtml(visiblePoly, hiddenPoly)
+  const outcomesHtml = buildOutcomesHtml(allPolyRows)
 
   const first = markets[0] || {}
   const totalVol  = fmtNum(parseFloat(event.volume || 0))
