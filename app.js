@@ -141,13 +141,14 @@ function betSimulatorHtml(pctYes, platform) {
     </div>`
 }
 
-window._betSimPct = 0
+window._simMarket = { amount: 10, pct: 0, platform: "" }
 function updateBetSim() {
   const input = document.getElementById("betSimInput")
   const results = document.getElementById("betSimResults")
   if (!input || !results) return
   const bet = Math.max(0, parseFloat(input.value) || 0)
-  const prob = window._betSimPct / 100
+  window._simMarket.amount = bet
+  const prob = window._simMarket.pct / 100
   if (prob <= 0 || prob >= 1 || bet <= 0) {
     results.innerHTML = `<div class="bet-sim-win" style="color:var(--muted)">Enter a bet amount above</div>`
     return
@@ -406,8 +407,15 @@ function renderKalshiEvent(ev, accent) {
     ? `<div class="urgency-banner urgency-${timeLeft.urgency}">⏱ ${esc(timeLeft.text)}</div>`
     : ""
 
-  const leadPct = sorted[0] ? Math.round(parseFloat(sorted[0].last_price_dollars || 0) * 100) : 0
-  window._betSimPct = leadPct
+  let leadPct = 0
+  if (sorted[0]) {
+    const lp = parseFloat(sorted[0].last_price_dollars || 0)
+    const yb = parseFloat(sorted[0].yes_bid_dollars || 0)
+    const ya = parseFloat(sorted[0].yes_ask_dollars || 0)
+    leadPct = lp > 0 ? Math.round(lp * 100)
+      : ya > 0 ? Math.round((yb + ya) / 2 * 100) : Math.round(yb * 100)
+  }
+  window._simMarket = { amount: 10, pct: leadPct, platform: "kalshi" }
   const betSimHtml = betSimulatorHtml(leadPct, "kalshi")
 
   const analyticsRows = (isMultiOutcome ? sorted.slice(0, 3) : sorted.slice(0, 1)).map(m => {
@@ -541,28 +549,19 @@ function renderPolymarketEvent(event, markets, accent) {
   const analyticsHtml = analyticsCard(polyAnalytics, timeLeft)
 
   let betExplainerText = ""
-  const polyDescriptions = []
-  markets.forEach(m => {
-    const desc = m.description || ""
-    const q = m.question || ""
-    if (desc) polyDescriptions.push(desc)
-    else if (q) polyDescriptions.push(q)
-  })
-  if (polyDescriptions.length === 1) {
-    betExplainerText = polyDescriptions[0]
-      .replace(/the market will resolve to "?Yes"?/gi, "you win")
-      .replace(/the market will resolve "?No"?\.?/gi, "you lose.")
-      .replace(/the market will resolve 50-50/gi, "your bet is returned (50-50 split)")
-      .replace(/the market resolves to "?Yes"?/gi, "you win")
-      .replace(/the market resolves "?No"?\.?/gi, "you lose.")
+  const firstDesc = first.description || first.question || event.description || ""
+  if (firstDesc) {
+    betExplainerText = firstDesc
+      .replace(/the market (?:will )?resolve[sd]? (?:to )?"?Yes"?\.?/gi, "you win")
+      .replace(/the market (?:will )?resolve[sd]? (?:to )?"?No\.?"?\.?/gi, "you lose")
+      .replace(/the market (?:will )?resolve[sd]? 50-50/gi, "your bet is returned (50-50 split)")
       .split(/(?<=[.!?])\s+/)
       .filter(s => s.trim().length > 10)
       .slice(0, 3)
       .join(" ")
-  } else if (polyDescriptions.length > 1) {
+  }
+  if (!betExplainerText && markets.length > 1) {
     betExplainerText = `Pick which outcome you think will happen. You win if your chosen outcome is correct.`
-  } else if (event.description) {
-    betExplainerText = event.description.split(/(?<=[.!?])\s+/).slice(0, 2).join(" ")
   }
 
   const polyRuleSentences = []
@@ -596,7 +595,7 @@ function renderPolymarketEvent(event, markets, accent) {
     : ""
 
   const leadPctPoly = polyAnalyticsCandidates.length ? Math.round(polyAnalyticsCandidates[0].prob * 100) : 0
-  window._betSimPct = leadPctPoly
+  window._simMarket = { amount: 10, pct: leadPctPoly, platform: "polymarket" }
   const betSimHtml = betSimulatorHtml(leadPctPoly, "polymarket")
 
   return `
