@@ -173,7 +173,7 @@ function outcomeRow(label, sub, pct, color, delta = null, extras = {}) {
           ${sub ? `<div class="outcome-sub">${esc(sub)}</div>` : ""}
         </div>
         <div class="outcome-right">
-          <span class="outcome-ml">${tip(esc(ml), "MONEYLINE")}</span>
+          <span class="outcome-ml">${tip(ml, "MONEYLINE")}</span>
           <span class="outcome-pct" style="color:${color}">${pct}%</span>
           ${deltaHtml}
         </div>
