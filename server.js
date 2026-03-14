@@ -28,6 +28,20 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Content-Type",
 }
 
+function normalizePem(raw) {
+  let pem = raw.replace(/\\n/g, "\n").trim()
+  const headerMatch = pem.match(/-----BEGIN ([^-]+)-----/)
+  const keyType = headerMatch ? headerMatch[1] : "RSA PRIVATE KEY"
+  const b64 = pem
+    .replace(/-----BEGIN [^-]+-----/g, "")
+    .replace(/-----END [^-]+-----/g, "")
+    .replace(/\s+/g, "")
+  const body = b64.match(/.{1,64}/g).join("\n")
+  return `-----BEGIN ${keyType}-----\n${body}\n-----END ${keyType}-----`
+}
+
+let _normalizedKey = null
+
 // Only allow alphanumeric, hyphen, underscore, dot in tickers/slugs
 function isSafeParam(str) {
   return typeof str === "string" && /^[A-Za-z0-9_\-\.]+$/.test(str)
@@ -95,21 +109,8 @@ const server = http.createServer((req, res) => {
       return res.end(JSON.stringify({ error: "Missing or invalid ticker" }))
     }
 
-    const normalizedKey = (function normalizePem(raw) {
-      // Replace any escaped \n sequences with real newlines
-      let pem = raw.replace(/\\n/g, "\n").trim()
-      // Detect header type (RSA PRIVATE KEY or PRIVATE KEY)
-      const headerMatch = pem.match(/-----BEGIN ([^-]+)-----/)
-      const keyType = headerMatch ? headerMatch[1] : "RSA PRIVATE KEY"
-      // Strip all headers/footers and whitespace to get raw base64
-      const b64 = pem
-        .replace(/-----BEGIN [^-]+-----/g, "")
-        .replace(/-----END [^-]+-----/g, "")
-        .replace(/\s+/g, "")
-      // Re-chunk at 64 chars and wrap with proper PEM headers
-      const body = b64.match(/.{1,64}/g).join("\n")
-      return `-----BEGIN ${keyType}-----\n${body}\n-----END ${keyType}-----`
-    })(privateKey)
+    if (!_normalizedKey) _normalizedKey = normalizePem(privateKey)
+    const normalizedKey = _normalizedKey
     const headers = { "Content-Type": "application/json", ...CORS_HEADERS }
 
     function kalshiGet(apiPath) {
