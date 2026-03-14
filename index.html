@@ -332,6 +332,66 @@
     }
     .num-text { color: var(--text); }
 
+    /* ── Tooltips ── */
+    .tip {
+      position: relative;
+      cursor: help;
+      border-bottom: 1px dotted var(--muted);
+    }
+    .tip::after {
+      content: attr(data-tip);
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #0e0d0b;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.2px;
+      line-height: 1.5;
+      padding: 8px 12px;
+      white-space: normal;
+      width: max-content;
+      max-width: 260px;
+      z-index: 100;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .tip:hover::after,
+    .tip:focus::after,
+    .tip:active::after { opacity: 1; }
+    .tip-bottom::after {
+      bottom: auto;
+      top: calc(100% + 8px);
+    }
+
+    /* ── Urgency banner ── */
+    .urgency-banner {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      margin-bottom: 14px;
+    }
+    .urgency-low  { color: var(--muted); }
+    .urgency-med  { color: #f59e0b; }
+    .urgency-high { color: var(--red); }
+    .urgency-text-low  { color: var(--muted); }
+    .urgency-text-med  { color: #f59e0b; }
+    .urgency-text-high { color: var(--red); font-weight: 600; }
+
+    /* ── Analytics value colors ── */
+    .val-green { color: var(--green); }
+    .val-amber { color: #f59e0b; }
+    .val-red   { color: var(--red); }
+    .val-muted { color: var(--muted); }
+
     /* ── Footer ── */
     .footer {
       margin-top: 60px;
@@ -464,6 +524,8 @@
       .num-list { padding: 6px 18px 16px; }
 
       .mi-loading, .mi-error { padding: 32px 18px; }
+
+      .tip::after { left: 0; transform: none; max-width: 220px; }
     }
   </style>
 </head>
