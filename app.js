@@ -86,25 +86,26 @@ function fmtTimeRemaining(iso) {
 function calcAnalyticsRow(label, prob, ask, bid) {
   if (!Number.isFinite(prob) || prob <= 0 || prob >= 1) return null
   if (!Number.isFinite(ask) || ask <= 0 || ask >= 1) return null
-  const breakEven = (ask * 100).toFixed(1)
-  const ev = ((prob - ask) / ask * 100).toFixed(1)
+  const round1 = n => Math.round(n * 10) / 10
+  const breakEven = round1(ask * 100)
+  const ev = round1((prob - ask) / ask * 100)
   const mid = Number.isFinite(bid) ? (bid + ask) / 2 : ask
-  const spread = mid > 0 && Number.isFinite(bid) ? ((ask - bid) / mid * 100).toFixed(1) : null
+  const spread = mid > 0 && Number.isFinite(bid) ? round1((ask - bid) / mid * 100) : null
   let kelly = null
   const b = (1 - ask) / ask
   if (b > 0) {
     const k = (prob * b - (1 - prob)) / b
-    kelly = Math.min(Math.max(k * 100, 0), 25).toFixed(1)
+    kelly = Math.min(Math.max(round1(k * 100), 0), 25)
   }
-  return { label, breakEven, ev: parseFloat(ev), spread: spread !== null ? parseFloat(spread) : null, kelly: kelly !== null ? parseFloat(kelly) : null }
+  return { label, breakEven, ev, spread, kelly }
 }
 
 function analyticsCard(rows, timeLeft) {
   if ((!rows || !rows.length) && !timeLeft) return ""
-  const lines = (rows || []).map(r => {
+  const multiRow = rows.length > 1
+  const lines = rows.map(r => {
     const parts = []
-    const beClass = "val-muted"
-    parts.push(`<div class="info-row"><span class="info-key">${tip("BREAK-EVEN")}</span><span class="info-val ${beClass}">${r.breakEven}%</span></div>`)
+    parts.push(`<div class="info-row"><span class="info-key">${tip("BREAK-EVEN")}</span><span class="info-val val-muted">${r.breakEven}%</span></div>`)
     const evClass = r.ev > 0 ? "val-green" : r.ev < 0 ? "val-red" : "val-muted"
     parts.push(`<div class="info-row"><span class="info-key">${tip("EXPECTED VALUE")}</span><span class="info-val ${evClass}">${r.ev > 0 ? "+" : ""}${r.ev}%</span></div>`)
     if (r.kelly !== null) {
@@ -114,7 +115,7 @@ function analyticsCard(rows, timeLeft) {
       const spClass = r.spread < 3 ? "val-green" : r.spread < 8 ? "val-amber" : "val-red"
       parts.push(`<div class="info-row"><span class="info-key">${tip("SPREAD QUALITY")}</span><span class="info-val ${spClass}">${r.spread}%</span></div>`)
     }
-    if ((rows || []).length > 1) {
+    if (multiRow) {
       return `<div class="info-row" style="border-bottom:none;padding-bottom:4px"><span class="info-key" style="color:#d8d6cc;font-weight:600">${esc(r.label)}</span></div>` + parts.join("")
     }
     return parts.join("")
@@ -392,6 +393,7 @@ function renderPolymarketEvent(event, markets, accent) {
 
   const colors = ["#22c55e", "#60a5fa", "#f59e0b", "#a78bfa", "#34d399", "#fb923c", "#38bdf8", "#f472b6"]
   const allPolyRows = []
+  const polyAnalyticsCandidates = []
   markets.forEach((market, idx) => {
     let outcomes, prices
     try {
@@ -400,14 +402,26 @@ function renderPolymarketEvent(event, markets, accent) {
     } catch (e) {
       return
     }
+    if (!prices || !Array.isArray(prices)) return
+    const rawAsk = parseFloat(market.bestAsk)
+    const rawBid = parseFloat(market.bestBid)
+    const bestAsk = Number.isFinite(rawAsk) ? rawAsk : null
+    const bestBid = Number.isFinite(rawBid) ? rawBid : null
     ;(outcomes || []).forEach((name, i) => {
-      const pct = Math.round(parseFloat(prices ? prices[i] : 0) * 100)
+      const pct = Math.round(parseFloat(prices[i] || 0) * 100)
       const extras = {}
-      if (market.bestBid != null && market.bestAsk != null) {
-        extras.bid = parseFloat(market.bestBid)
-        extras.ask = parseFloat(market.bestAsk)
+      if (bestBid != null && bestAsk != null) {
+        extras.bid = bestBid
+        extras.ask = bestAsk
       }
       allPolyRows.push(outcomeRow(name, "", pct, colors[(idx + i) % colors.length], null, extras))
+
+      const prob = parseFloat(prices[i])
+      if (!Number.isFinite(prob) || prob <= 0) return
+      let ask = bestAsk != null ? bestAsk : prob
+      if (ask <= 0) ask = prob
+      const bid = bestBid != null ? bestBid : prob
+      polyAnalyticsCandidates.push({ prob, label: name ? String(name) : market.question || "YES", ask, bid })
     })
   })
   if (!allPolyRows.length) return `<div class="mi-error">No outcome data found for this market.</div>`
@@ -431,25 +445,6 @@ function renderPolymarketEvent(event, markets, accent) {
     ? `<div class="urgency-banner urgency-${timeLeft.urgency}">⏱ ${esc(timeLeft.text)}</div>`
     : ""
 
-  const polyAnalyticsCandidates = []
-  markets.forEach(m => {
-    let prices
-    try { prices = typeof m.outcomePrices === "string" ? JSON.parse(m.outcomePrices) : m.outcomePrices } catch(e) { return }
-    let outcomes
-    try { outcomes = typeof m.outcomes === "string" ? JSON.parse(m.outcomes) : m.outcomes } catch(e) { return }
-    if (!prices || !Array.isArray(prices)) return
-    const bestAsk = Number.isFinite(parseFloat(m.bestAsk)) ? parseFloat(m.bestAsk) : null
-    const bestBid = Number.isFinite(parseFloat(m.bestBid)) ? parseFloat(m.bestBid) : null
-    prices.forEach((p, i) => {
-      const prob = parseFloat(p)
-      if (!Number.isFinite(prob) || prob <= 0) return
-      let ask = bestAsk != null ? bestAsk : prob
-      if (ask <= 0) ask = prob
-      const bid = bestBid != null ? bestBid : prob
-      const label = outcomes && outcomes[i] ? String(outcomes[i]) : m.question || "YES"
-      polyAnalyticsCandidates.push({ prob, label, ask, bid })
-    })
-  })
   polyAnalyticsCandidates.sort((a, b) => b.prob - a.prob)
   const polyAnalytics = polyAnalyticsCandidates.slice(0, 3).map(c =>
     calcAnalyticsRow(c.label, c.prob, c.ask, c.bid)
