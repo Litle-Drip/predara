@@ -13,8 +13,13 @@ const GLOSSARY = {
   "COMMENTS":         "Number of comments from traders discussing this market.",
   "BREAK-EVEN":       "The minimum win probability needed to profit at the current ask price.",
   "EXPECTED VALUE":   "Average profit per $1 bet. Positive = good value vs market price.",
+  "EV":               "Average profit per $1 bet. Positive = good value vs market price.",
   "KELLY CRITERION":  "Optimal bet size as % of bankroll to maximize long-term growth.",
+  "KELLY":            "Optimal bet size as % of bankroll to maximize long-term growth.",
   "SPREAD QUALITY":   "Bid-ask gap as % of midpoint. Lower = cheaper to trade.",
+  "SPREAD":           "Gap between the bid and ask price. Tighter spread = more liquid market.",
+  "MONEYLINE":        "American odds format. -150 means bet $150 to win $100. +200 means bet $100 to win $200.",
+  "BID / ASK":        "Bid = highest price a buyer will pay. Ask = lowest price a seller will accept.",
 }
 
 function esc(str) {
@@ -149,12 +154,12 @@ function outcomeRow(label, sub, pct, color, delta = null, extras = {}) {
     : ""
   const metaParts = []
   if (Number.isFinite(extras.bid) && Number.isFinite(extras.ask)) {
-    metaParts.push(`Bid ${Math.round(extras.bid * 100)}¢ · Ask ${Math.round(extras.ask * 100)}¢`)
+    metaParts.push(`${tip("Bid", "BID / ASK")} ${Math.round(extras.bid * 100)}¢ · ${tip("Ask", "BID / ASK")} ${Math.round(extras.ask * 100)}¢`)
   }
   if (extras.vol) metaParts.push(`Vol $${extras.vol}`)
   if (extras.oi) metaParts.push(`OI $${extras.oi}`)
   const metaHtml = metaParts.length
-    ? `<div class="outcome-meta">${metaParts.map(p => `<span>${esc(p)}</span>`).join("")}</div>`
+    ? `<div class="outcome-meta">${metaParts.map(p => `<span>${p}</span>`).join("")}</div>`
     : ""
   return `
     <div class="outcome-row">
@@ -164,7 +169,7 @@ function outcomeRow(label, sub, pct, color, delta = null, extras = {}) {
           ${sub ? `<div class="outcome-sub">${esc(sub)}</div>` : ""}
         </div>
         <div class="outcome-right">
-          <span class="outcome-ml">${esc(ml)}</span>
+          <span class="outcome-ml">${tip(esc(ml), "MONEYLINE")}</span>
           <span class="outcome-pct" style="color:${color}">${pct}%</span>
           ${deltaHtml}
         </div>
@@ -316,8 +321,11 @@ function renderKalshiEvent(ev, accent) {
 
   const analyticsRows = (isMultiOutcome ? sorted.slice(0, 3) : sorted.slice(0, 1)).map(m => {
     const prob = parseFloat(m.last_price_dollars || 0)
-    const ask  = parseFloat(m.yes_ask_dollars || 0)
+    let ask  = parseFloat(m.yes_ask_dollars || 0)
     const bid  = parseFloat(m.yes_bid_dollars || 0)
+    if (!Number.isFinite(ask) || ask <= 0) {
+      ask = Number.isFinite(bid) && bid > 0 ? (bid + prob) / 2 : prob
+    }
     return calcAnalyticsRow(m.yes_sub_title || "YES", prob, ask, bid)
   }).filter(Boolean)
   const analyticsHtml = analyticsCard(analyticsRows)
@@ -419,18 +427,23 @@ function renderPolymarketEvent(event, markets, accent) {
     ? `<div class="urgency-banner urgency-${timeLeft.urgency}">⏱ ${esc(timeLeft.text)}</div>`
     : ""
 
-  const polyAnalytics = markets.slice(0, 3).map(m => {
+  const polyAnalyticsCandidates = markets.map(m => {
     let prices
     try { prices = typeof m.outcomePrices === "string" ? JSON.parse(m.outcomePrices) : m.outcomePrices } catch(e) { return null }
     let outcomes
     try { outcomes = typeof m.outcomes === "string" ? JSON.parse(m.outcomes) : m.outcomes } catch(e) { return null }
     if (!prices || !Number.isFinite(parseFloat(prices[0])) || parseFloat(prices[0]) <= 0) return null
     const prob = parseFloat(prices[0])
-    const ask = Number.isFinite(parseFloat(m.bestAsk)) ? parseFloat(m.bestAsk) : prob
+    let ask = Number.isFinite(parseFloat(m.bestAsk)) ? parseFloat(m.bestAsk) : prob
+    if (ask <= 0) ask = prob
     const bid = Number.isFinite(parseFloat(m.bestBid)) ? parseFloat(m.bestBid) : prob
-    const label = outcomes && outcomes[0] ? String(outcomes[0]) : "YES"
-    return calcAnalyticsRow(label, prob, ask, bid)
+    const label = outcomes && outcomes[0] ? String(outcomes[0]) : m.question || "YES"
+    return { prob, label, ask, bid }
   }).filter(Boolean)
+  polyAnalyticsCandidates.sort((a, b) => b.prob - a.prob)
+  const polyAnalytics = polyAnalyticsCandidates.slice(0, 3).map(c =>
+    calcAnalyticsRow(c.label, c.prob, c.ask, c.bid)
+  ).filter(Boolean)
   const analyticsHtml = analyticsCard(polyAnalytics)
 
   return `
