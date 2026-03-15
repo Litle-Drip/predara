@@ -62,6 +62,19 @@ function fmtDateTime(iso) {
   })
 }
 
+function categoryColor(cat) {
+  const c = (cat || "").toLowerCase()
+  if (/politi|election|govern|democrat|republican|senate|congress|president/.test(c)) return "#3b82f6"
+  if (/sport|golf|pga|nfl|nba|mlb|nhl|soccer|tennis|football|basketball|baseball|hockey|ufc|fight/.test(c)) return "#22c55e"
+  if (/financ|econom|gdp|inflation|fed|rate|stock|market|bond|yield/.test(c)) return "#f59e0b"
+  if (/crypto|bitcoin|btc|ethereum|eth|web3|token|coin/.test(c)) return "#6366f1"
+  if (/tech|science|space|ai|software|computer/.test(c)) return "#06b6d4"
+  if (/entertain|culture|celebrity|award|movie|music|tv|film|oscar|grammy/.test(c)) return "#a855f7"
+  if (/health|medical|covid|drug|pharma|disease/.test(c)) return "#ec4899"
+  if (/business|company|corporate|ceo|merger|ipo/.test(c)) return "#f97316"
+  return "#6b7280"
+}
+
 function fmtNum(val) {
   const n = Math.round(parseFloat(val || 0))
   return n > 0 ? n.toLocaleString() : null
@@ -315,6 +328,8 @@ function renderKalshiEvent(ev, accent) {
   const statusText = status.toUpperCase()
   const category   = ev.product_metadata?.competition || ev.category || "Markets"
 
+  const catColor = categoryColor(category)
+
   // Clean event title — strip trailing punctuation (?, !, .)
   const eventTitle = (ev.title || ev.event_ticker || "").replace(/[?!.]+$/, "").trim()
   const eventSubTitle = ev.sub_title || ""
@@ -395,34 +410,23 @@ function renderKalshiEvent(ev, accent) {
   const canCloseEarly = first.can_close_early
   const earlyCloseText = first.early_close_condition || (canCloseEarly ? "Possible" : "")
 
-  // Projected payout — based on true leader across ALL markets (not filtered display subset)
+  // allSorted — true probability-ranked leaders across the full event (used by analytics)
   const allSorted = [...allMarkets].sort((a, b) =>
     parseFloat(b.last_price_dollars || 0) - parseFloat(a.last_price_dollars || 0))
-  let projectedPayoutHtml = ""
-  if (allSorted[0]) {
-    const leader    = allSorted[0]
-    const askRaw    = parseFloat(leader.yes_ask_dollars || 0)
-    const lastRaw   = parseFloat(leader.last_price_dollars || 0)
-    const ask       = askRaw > 0 ? askRaw : lastRaw
-    const leaderName = leader.yes_sub_title || ""
-    if (ask > 0 && ask < 1) {
-      const costCents  = Math.round(ask * 100)
-      const profitCents = 100 - costCents
-      const roi        = Math.round(profitCents / costCents * 100)
-      const nameStr    = leaderName ? ` if ${leaderName} wins` : ""
-      projectedPayoutHtml = `<div class="info-row">
-        <span class="info-key">${tip("PROJECTED PAYOUT")}</span>
-        <span class="info-val"><span class="payout-val">$1.00 per contract${nameStr}</span> <span class="payout-meta">(buy at ${costCents}¢ → +${profitCents}¢ profit · +${roi}% ROI)</span></span>
-      </div>`
-    }
-  }
+
+  // Projected payout date — Kalshi's "projected payout" is when winners receive funds after resolution.
+  // Kalshi exposes this as expected_expiration_time (same field shown on their timeline as "Projected payout").
+  // Fall back to settlement_time or latest_expiration_time if present.
+  const payoutDate = fmtDateTime(
+    first.settlement_time || first.latest_expiration_time || first.expected_expiration_time
+  )
 
   const timelineRows  = [
     infoRow("Start date", startDate),
     infoRow("End / expiry", endDate),
     infoRow("Resolution date", expDate),
     earlyCloseText ? `<div class="info-row"><span class="info-key">${esc("Early close")}</span><span class="info-val">${esc(earlyCloseText)}</span></div>` : "",
-    projectedPayoutHtml,
+    infoRow("Projected payout", payoutDate),
   ].join("")
 
   const rulesRaw = first.rules_secondary || (!isMultiOutcome ? first.rules_primary : "") || ""
@@ -493,7 +497,7 @@ function renderKalshiEvent(ev, accent) {
       <div class="event-head">
         <div class="event-tags">
           <span class="tag-platform" style="background:${accent}">${esc(PLATFORMS.kalshi.label)}</span>
-          <span class="tag-cat">${esc(category.toUpperCase())}</span>
+          <span class="tag-cat" style="color:${catColor};border-color:${catColor};background:${catColor}1a">${esc(category.toUpperCase())}</span>
           ${exclusiveTag}
           <span class="tag-status">
             <span class="${statusDot}">●</span> ${esc(statusText)}
@@ -588,7 +592,10 @@ function renderPolymarketEvent(event, markets, accent) {
   if (!Array.isArray(tags)) tags = []
   const tagsHtml = tags
     .filter(t => t != null)
-    .map(t => `<span class="tag-topic">${esc(String(t).toUpperCase())}</span>`).join("")
+    .map(t => {
+      const col = categoryColor(String(t))
+      return `<span class="tag-cat" style="color:${col};border-color:${col};background:${col}1a">${esc(String(t).toUpperCase())}</span>`
+    }).join("")
 
   const timeLeft = fmtTimeRemaining(event.endDate)
   const urgencyHtml = timeLeft
