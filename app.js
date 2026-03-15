@@ -521,6 +521,12 @@ function renderKalshiEvent(ev, accent, platformKey = "kalshi") {
 
     ${whatsTheBetCard(betExplainerText)}
 
+    ${ruleSentences.length ? `
+    <div class="mi-card">
+      <div class="section-label">HOW IT RESOLVES</div>
+      <div class="num-list">${numList(ruleSentences)}</div>
+    </div>` : ""}
+
     ${timelineRows ? `
     <div class="mi-card">
       <div class="section-label">TIMELINE</div>
@@ -538,12 +544,6 @@ function renderKalshiEvent(ev, accent, platformKey = "kalshi") {
       ${statCard("LIQUIDITY", totalLiq ? `$${totalLiq}` : "—")}
       ${statCard("OPEN INTEREST", totalOI ? `$${totalOI}` : "—")}
     </div>
-
-    ${ruleSentences.length ? `
-    <div class="mi-card">
-      <div class="section-label">HOW IT RESOLVES</div>
-      <div class="num-list">${numList(ruleSentences)}</div>
-    </div>` : ""}
 
     ${betSimHtml}
 
@@ -745,6 +745,12 @@ function renderGeminiEvent(event, accent) {
 
     ${whatsTheBetCard(betExplainerText)}
 
+    ${ruleSentences.length ? `
+    <div class="mi-card">
+      <div class="section-label">HOW IT RESOLVES</div>
+      <div class="num-list">${numList(ruleSentences)}</div>
+    </div>` : ""}
+
     ${(startIso || expiryIso) ? `
     <div class="mi-card">
       <div class="section-label">TIMELINE</div>
@@ -767,12 +773,6 @@ function renderGeminiEvent(event, accent) {
             ? contractNames.slice(0, 5).join(" · ") + (contractNames.length > 5 ? " ···" : "")
             : "")}
     </div>
-
-    ${ruleSentences.length ? `
-    <div class="mi-card">
-      <div class="section-label">HOW IT RESOLVES</div>
-      <div class="num-list">${numList(ruleSentences)}</div>
-    </div>` : ""}
 
     ${betSimHtml}
 
@@ -924,11 +924,6 @@ function renderPolymarketEvent(event, markets, accent, platformKey = "polymarket
 
     ${whatsTheBetCard(betExplainerText)}
 
-    <div class="mi-card">
-      <div class="section-label">OUTCOMES &amp; PROBABILITY</div>
-      ${outcomesHtml}
-    </div>
-
     ${polyRulesLimited.length || resSourceHtml ? `
     <div class="mi-card">
       <div class="section-label">HOW IT RESOLVES</div>
@@ -943,6 +938,11 @@ function renderPolymarketEvent(event, markets, accent, platformKey = "polymarket
       ${infoRow("End date", fmtDate(event.endDate))}
       ${infoRow("Expected resolution", fmtDate(event.resolutionDate))}
     </div>` : ""}
+
+    <div class="mi-card">
+      <div class="section-label">OUTCOMES &amp; PROBABILITY</div>
+      ${outcomesHtml}
+    </div>
 
     ${betSimHtml}
 
