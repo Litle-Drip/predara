@@ -579,17 +579,37 @@
     .mi-loading {
       color: var(--muted);
       animation: pulse 1.4s ease-in-out infinite;
+      display: flex;
+      align-items: center;
+      gap: 14px;
     }
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50%       { opacity: 0.35; }
     }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .mi-spinner {
+      width: 15px;
+      height: 15px;
+      border: 2px solid var(--border);
+      border-top-color: var(--orange);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      flex-shrink: 0;
+    }
     .mi-error {
       color: var(--red);
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 20px;
       flex-wrap: wrap;
+    }
+    .error-content { display: flex; flex-direction: column; gap: 6px; }
+    .error-hint {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.3px;
+      line-height: 1.5;
     }
     .retry-btn {
       background: none;
@@ -605,8 +625,26 @@
       transition: background 0.15s;
       white-space: nowrap;
       flex-shrink: 0;
+      margin-top: 2px;
     }
     .retry-btn:hover { background: rgba(239, 68, 68, 0.1); }
+
+    /* ── Input validation hint ── */
+    .input-hint {
+      font-size: 11px;
+      letter-spacing: 0.3px;
+      line-height: 1.5;
+      margin-top: -20px;
+      margin-bottom: 14px;
+      padding-left: 2px;
+      min-height: 18px;
+      transition: color 0.15s;
+    }
+    .hint-error { color: var(--red); }
+    .hint-ok    { color: var(--green); }
+    .hint-info  { color: var(--muted); }
+    .search-row input.input-invalid { border-color: var(--red); }
+    .search-row input.input-valid   { border-color: var(--green); }
 
     /* ── Empty state ── */
     .empty-state {
@@ -633,13 +671,17 @@
 
       .section-label { padding: 14px 18px 12px; }
 
+      /* Outcome rows: let pct and name wrap so long names don't get squashed */
       .outcome-row  { padding: 18px 18px 16px; }
-      .outcome-pct  { font-size: 38px; }
+      .outcome-top  { flex-wrap: wrap; gap: 6px; }
+      .outcome-pct  { font-size: 36px; }
       .outcome-name { font-size: 14px; }
-      .outcome-right { gap: 12px; margin-left: 14px; }
+      .outcome-right { gap: 10px; margin-left: 0; flex-shrink: 0; }
+      .outcome-ml   { font-size: 12px; }
 
       .stats-grid { grid-template-columns: 1fr 1fr; }
       .stat-card  { padding: 16px 18px 18px; }
+      .stat-value { font-size: 18px; }
 
       .info-row { padding: 12px 18px; flex-wrap: wrap; gap: 4px; }
       .info-val { max-width: 100%; text-align: left; }
@@ -651,8 +693,19 @@
       .bet-sim-input-row { font-size: 13px; }
       .bet-sim-input { width: 80px; font-size: 15px; padding: 6px 10px; }
 
+      .show-more-row { padding: 12px 18px; }
+
       .mi-loading, .mi-error { padding: 32px 18px; }
 
+      /* Keep tooltips from overflowing the right edge */
+      .tip::after { left: auto; right: 0; max-width: 220px; }
+    }
+
+    /* ── Small phones (< 400px) ── */
+    @media (max-width: 400px) {
+      .stats-grid   { grid-template-columns: 1fr; }
+      .outcome-pct  { font-size: 30px; }
+      .outcome-right { gap: 8px; }
     }
   </style>
 </head>
@@ -670,9 +723,11 @@
   </div>
 
   <div class="search-row">
-    <input id="urlInput" placeholder="Paste a Kalshi, Polymarket, Gemini, or Coinbase URL..." onkeydown="if(event.key==='Enter')analyze()" />
+    <input id="urlInput" placeholder="Paste a Kalshi, Polymarket, Gemini, or Coinbase URL..." onkeydown="if(event.key==='Enter')analyze()" oninput="onInputChange()" />
     <button onclick="analyze()">ANALYZE ↗</button>
   </div>
+
+  <div id="inputHint" class="input-hint"></div>
 
   <div id="result"><div class="empty-state">Paste a Kalshi, Polymarket, Gemini, or Coinbase market URL above to analyze odds, volume, and trading data.</div></div>
 

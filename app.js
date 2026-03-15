@@ -962,9 +962,90 @@ function renderPolymarketEvent(event, markets, accent, platformKey = "polymarket
   `
 }
 
-function showError(msg) {
+function showError(msg, hint = "") {
+  const hintHtml = hint ? `<div class="error-hint">${esc(hint)}</div>` : ""
   document.getElementById("result").innerHTML =
-    `<div class="mi-error"><span>${esc(msg)}</span><button class="retry-btn" onclick="document.getElementById('urlInput').select();document.getElementById('urlInput').focus()">TRY AGAIN ↺</button></div>`
+    `<div class="mi-error">
+      <div class="error-content"><span>${esc(msg)}</span>${hintHtml}</div>
+      <button class="retry-btn" onclick="document.getElementById('urlInput').select();document.getElementById('urlInput').focus()">TRY AGAIN ↺</button>
+    </div>`
+}
+
+function onInputChange() {
+  const raw = document.getElementById("urlInput").value.trim()
+  const hint = document.getElementById("inputHint")
+  const input = document.getElementById("urlInput")
+  if (!hint) return
+
+  if (!raw) {
+    hint.textContent = ""
+    hint.className = "input-hint"
+    input.classList.remove("input-invalid", "input-valid")
+    return
+  }
+
+  const lower = raw.toLowerCase()
+  const geminiTickerRe = /^[A-Z][A-Z0-9\-]{2,}$/i
+
+  if (geminiTickerRe.test(raw) && !raw.startsWith("http")) {
+    hint.textContent = `Gemini ticker detected — will search for ${raw.toUpperCase()}`
+    hint.className = "input-hint hint-info"
+    input.classList.remove("input-invalid", "input-valid")
+    return
+  }
+
+  if (lower.includes("kalshi.com")) {
+    if (!lower.includes("/markets/") && !lower.includes("/events/")) {
+      hint.textContent = "Kalshi URL needs /markets/<ticker> or /events/<ticker>"
+      hint.className = "input-hint hint-error"
+      input.classList.add("input-invalid"); input.classList.remove("input-valid")
+    } else {
+      hint.textContent = "Kalshi market URL detected"
+      hint.className = "input-hint hint-ok"
+      input.classList.add("input-valid"); input.classList.remove("input-invalid")
+    }
+    return
+  }
+  if (lower.includes("polymarket.com")) {
+    if (!lower.includes("/event/")) {
+      hint.textContent = "Polymarket URL needs /event/<slug>"
+      hint.className = "input-hint hint-error"
+      input.classList.add("input-invalid"); input.classList.remove("input-valid")
+    } else {
+      hint.textContent = "Polymarket event URL detected"
+      hint.className = "input-hint hint-ok"
+      input.classList.add("input-valid"); input.classList.remove("input-invalid")
+    }
+    return
+  }
+  if (lower.includes("gemini.com")) {
+    if (!lower.includes("/predictions/") && !lower.includes("/prediction-markets/")) {
+      hint.textContent = "Gemini URL needs /predictions/<ticker> or /prediction-markets/<ticker>"
+      hint.className = "input-hint hint-error"
+      input.classList.add("input-invalid"); input.classList.remove("input-valid")
+    } else {
+      hint.textContent = "Gemini market URL detected"
+      hint.className = "input-hint hint-ok"
+      input.classList.add("input-valid"); input.classList.remove("input-invalid")
+    }
+    return
+  }
+  if (lower.includes("coinbase.com")) {
+    hint.textContent = "Coinbase market URL detected"
+    hint.className = "input-hint hint-ok"
+    input.classList.add("input-valid"); input.classList.remove("input-invalid")
+    return
+  }
+  if (raw.startsWith("http://") || raw.startsWith("https://")) {
+    hint.textContent = "Unrecognized platform — supported: kalshi.com · polymarket.com · gemini.com · coinbase.com"
+    hint.className = "input-hint hint-error"
+    input.classList.add("input-invalid"); input.classList.remove("input-valid")
+    return
+  }
+
+  hint.textContent = ""
+  hint.className = "input-hint"
+  input.classList.remove("input-invalid", "input-valid")
 }
 
 let _analyzing = false
@@ -987,7 +1068,11 @@ async function analyze() {
   btn.style.opacity = "0.6"
   btn.style.cursor = "not-allowed"
 
-  result.innerHTML = `<div class="mi-loading">ANALYZING</div>`
+  // Clear input hint while loading
+  const hintEl = document.getElementById("inputHint")
+  if (hintEl) { hintEl.textContent = ""; hintEl.className = "input-hint" }
+
+  result.innerHTML = `<div class="mi-loading"><span class="mi-spinner"></span>ANALYZING</div>`
 
   function resetBtn() {
     _analyzing = false
@@ -1035,11 +1120,28 @@ async function analyze() {
       }
 
       const res = await fetch(`/api/polymarket?slug=${encodeURIComponent(slug)}`)
-      if (!res.ok) throw new Error(`API error ${res.status}`)
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        if (res.status === 404) {
+          showError(
+            "Event not found on Polymarket",
+            "The market slug may have changed or the event may have closed. Copy the URL directly from polymarket.com/event/…"
+          )
+          return
+        }
+        if (res.status === 504) {
+          showError("Polymarket API timed out", "The request took too long. Try again in a moment.")
+          return
+        }
+        throw new Error(errData.error || `Polymarket API error ${res.status}`)
+      }
       const data = await res.json()
 
       const event = Array.isArray(data) ? data[0] : data
-      if (!event) throw new Error("No event found.")
+      if (!event) {
+        showError("Event not found", "No matching event for that slug — double-check the URL.")
+        return
+      }
       const markets = event.markets || []
       if (!markets.length) throw new Error("No market data found.")
 
@@ -1073,8 +1175,27 @@ async function analyze() {
       if (!data || (!data.event && !data.market)) {
         const res = await fetch(`/api/kalshi?ticker=${encodeURIComponent(ticker)}`)
         if (!res.ok) {
-          const err = await res.json()
-          throw new Error(err.error || `API error ${res.status}`)
+          const errData = await res.json().catch(() => ({}))
+          if (res.status === 404) {
+            showError(
+              `Market "${ticker}" not found on Kalshi`,
+              "Check the ticker in the URL — it may have expired or been delisted. Browse markets at kalshi.com/markets"
+            )
+            return
+          }
+          if (res.status === 401 || res.status === 403) {
+            showError("Kalshi authentication failed", "The API credentials may be expired or misconfigured.")
+            return
+          }
+          if (res.status === 503) {
+            showError("Kalshi API not configured", "KALSHI_API_KEY_ID and KALSHI_PRIVATE_KEY environment variables are required.")
+            return
+          }
+          if (res.status === 504) {
+            showError("Kalshi API timed out", "The request took too long. Try again in a moment.")
+            return
+          }
+          throw new Error(errData.error || `Kalshi API error ${res.status}`)
         }
         data = await res.json()
       }
@@ -1124,12 +1245,22 @@ async function analyze() {
 
       const res = await fetch(`/api/gemini?ticker=${encodeURIComponent(ticker)}`)
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || `API error ${res.status}`)
+        const errData = await res.json().catch(() => ({}))
+        if (res.status === 404) {
+          showError(
+            `Ticker "${ticker}" not found on Gemini`,
+            "Double-check the full ticker — some have trailing characters (e.g. TPC2026T5, not TPC2026T). Browse markets at gemini.com/prediction-markets"
+          )
+          return
+        }
+        if (res.status === 504) {
+          showError("Gemini API timed out", "The request took too long. Try again in a moment.")
+          return
+        }
+        throw new Error(errData.error || `Gemini API error ${res.status}`)
       }
       const data = await res.json()
       if (!data || !data.title) throw new Error("No event data returned.")
-      console.log("[Gemini] raw event data:", JSON.stringify(data, null, 2))
 
       result.innerHTML = renderGeminiEvent(data, accent)
     } catch (err) {
@@ -1140,7 +1271,13 @@ async function analyze() {
     }
 
   } else {
-    showError("Unrecognized URL · Paste a Kalshi, Polymarket, Gemini, or Coinbase link.")
+    const isUrl = url.startsWith("http://") || url.startsWith("https://")
+    showError(
+      isUrl ? "Unrecognized platform" : "Unrecognized input",
+      isUrl
+        ? "Supported platforms: kalshi.com · polymarket.com · gemini.com · predict.coinbase.com"
+        : "Paste a full market URL, or a bare Gemini ticker like NBA-2603151930-DET-TOR-M"
+    )
     resetBtn()
   }
 }
