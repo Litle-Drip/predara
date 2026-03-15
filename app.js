@@ -984,7 +984,8 @@ async function analyze() {
     try {
       const cleanPath = url.split("?")[0].split("#")[0].replace(/\/$/, "")
       const pathParts = cleanPath.split("/").filter(Boolean)
-      const ticker = pathParts[pathParts.length - 1]
+      const predictionsIdx = pathParts.findIndex(p => p.toLowerCase() === "predictions")
+      const ticker = predictionsIdx !== -1 ? pathParts[predictionsIdx + 1] : pathParts[pathParts.length - 1]
       if (!ticker) throw new Error("Invalid Gemini URL — could not find event ticker.")
 
       const res = await fetch(`/api/gemini?ticker=${encodeURIComponent(ticker)}`)
