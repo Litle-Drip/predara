@@ -571,14 +571,24 @@ function renderGeminiEvent(event, accent) {
     if (ask > 0) analyticsCandidates.push({ prob: price, label: "YES", ask, bid: bid || price })
   } else {
     contracts.forEach((c, idx) => {
-      const name  = c.title || c.name || c.instrumentSymbol || `Outcome ${idx + 1}`
-      const price = parseFloat(c.lastPrice || c.price || c.bestAsk || 0)
+      const rawName = c.title || c.name || c.instrumentSymbol || `Outcome ${idx + 1}`
+      // Extract human-readable name from contract symbols like GEMI-TPC2026WIN-ABERG
+      let name = rawName
+      const symbolMatch = rawName.match(/^[A-Z]+-[A-Z0-9]+-(.+)$/)
+      if (symbolMatch) {
+        name = symbolMatch[1].charAt(0).toUpperCase() + symbolMatch[1].slice(1).toLowerCase()
+      }
+      const price = parseFloat(c.lastPrice || c.midpoint || c.mid || c.price || c.bestAsk || 0)
       const bid   = parseFloat(c.bestBid || c.bid || price)
       const ask   = parseFloat(c.bestAsk || c.ask || price)
       const pct   = Math.round(price * 100)
-      const extras = Number.isFinite(bid) && Number.isFinite(ask) && ask > 0
-        ? { bid, ask }
-        : {}
+      const extras = {}
+      if (Number.isFinite(bid) && Number.isFinite(ask) && ask > 0) {
+        extras.bid = bid
+        extras.ask = ask
+      }
+      if (c.volume || c.notionalVolume) extras.vol = fmtNum(parseFloat(c.volume || c.notionalVolume))
+      if (c.openInterest) extras.oi = fmtNum(parseFloat(c.openInterest))
       allRows.push(outcomeRow(name, "", pct, OUTCOME_COLORS[idx % OUTCOME_COLORS.length], null, extras))
       if (price > 0 && ask > 0) {
         analyticsCandidates.push({ prob: price, label: String(name), ask, bid: bid || price })
@@ -590,8 +600,9 @@ function renderGeminiEvent(event, accent) {
   const outcomesHtml = buildOutcomesHtml(allRows)
 
   // Stats
-  const totalVol = fmtNum(parseFloat(event.volume || 0))
-  const totalLiq = fmtNum(parseFloat(event.liquidity || 0))
+  const totalVol = fmtNum(parseFloat(event.volume || event.notionalVolume || 0))
+  const totalLiq = fmtNum(parseFloat(event.liquidity || event.openInterest || 0))
+  const totalOI  = fmtNum(parseFloat(event.openInterest || 0))
 
   // Tags
   let tags = event.tags || []
@@ -669,6 +680,8 @@ function renderGeminiEvent(event, accent) {
     <div class="stats-grid">
       ${statCard("VOLUME TRADED", totalVol ? `$${totalVol}` : null)}
       ${statCard("LIQUIDITY", totalLiq ? `$${totalLiq}` : null)}
+      ${statCard("OPEN INTEREST", totalOI ? `$${totalOI}` : null)}
+      ${statCard("RUNNERS", contracts.length > 0 ? String(contracts.length) : null)}
     </div>
 
     ${ruleSentences.length ? `
