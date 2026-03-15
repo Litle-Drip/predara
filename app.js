@@ -573,6 +573,9 @@ function renderPolymarketEvent(event, markets, accent) {
   if (!betExplainerText && markets.length > 1) {
     betExplainerText = `Pick which outcome you think will happen. You win if your chosen outcome is correct.`
   }
+  if (!betExplainerText && event.title) {
+    betExplainerText = `This market is about: ${event.title}. Check the outcomes below to see the options and their current odds.`
+  }
 
   const polyRuleSentences = []
   const seen = new Set()
