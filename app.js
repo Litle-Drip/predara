@@ -49,7 +49,7 @@ function fmtDate(iso) {
   if (!iso || typeof iso !== "string" || iso.startsWith("0001")) return "—"
   const d = new Date(iso)
   if (isNaN(d)) return "—"
-  return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+  return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })
 }
 
 function fmtDateTime(iso) {
