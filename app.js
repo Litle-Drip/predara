@@ -20,6 +20,7 @@ const GLOSSARY = {
   "SPREAD":           "Gap between the bid and ask price. Tighter spread = more liquid market.",
   "MONEYLINE":        "American odds format. -150 means bet $150 to win $100. +200 means bet $100 to win $200.",
   "BID / ASK":        "Bid = highest price a buyer will pay. Ask = lowest price a seller will accept.",
+  "PROJECTED PAYOUT": "If the current leader wins, how much each contract pays. Kalshi contracts always pay $1 on a win — profit depends on what you paid.",
 }
 
 function esc(str) {
@@ -381,11 +382,33 @@ function renderKalshiEvent(ev, accent) {
   const expDate       = fmtDateTime(first.expected_expiration_time)
   const canCloseEarly = first.can_close_early
   const earlyCloseText = first.early_close_condition || (canCloseEarly ? "Possible" : "")
+
+  // Projected payout — based on leader's current ask; each contract pays $1
+  let projectedPayoutHtml = ""
+  if (sorted[0]) {
+    const leader    = sorted[0]
+    const askRaw    = parseFloat(leader.yes_ask_dollars || 0)
+    const lastRaw   = parseFloat(leader.last_price_dollars || 0)
+    const ask       = askRaw > 0 ? askRaw : lastRaw
+    const leaderName = leader.yes_sub_title || ""
+    if (ask > 0 && ask < 1) {
+      const costCents  = Math.round(ask * 100)
+      const profitCents = 100 - costCents
+      const roi        = Math.round(profitCents / costCents * 100)
+      const nameStr    = leaderName ? ` if ${leaderName} wins` : ""
+      projectedPayoutHtml = `<div class="info-row">
+        <span class="info-key">${tip("PROJECTED PAYOUT")}</span>
+        <span class="info-val"><span class="payout-val">$1.00 per contract${nameStr}</span> <span class="payout-meta">(buy at ${costCents}¢ → +${profitCents}¢ profit · +${roi}% ROI)</span></span>
+      </div>`
+    }
+  }
+
   const timelineRows  = [
     infoRow("Start date", startDate),
     infoRow("End / expiry", endDate),
     infoRow("Resolution date", expDate),
     earlyCloseText ? `<div class="info-row"><span class="info-key">${esc("Early close")}</span><span class="info-val">${esc(earlyCloseText)}</span></div>` : "",
+    projectedPayoutHtml,
   ].join("")
 
   const rulesRaw = first.rules_secondary || (!isMultiOutcome ? first.rules_primary : "") || ""
