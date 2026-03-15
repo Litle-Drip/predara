@@ -241,9 +241,9 @@ function analyticsCard(rows, timeLeft) {
     </div>`
 }
 
-function statCard(label, value) {
+function statCard(label, value, sub = "") {
   const inner = value
-    ? `<div class="stat-value">${value}</div>`
+    ? `<div class="stat-value">${value}</div>${sub ? `<div class="stat-sub">${esc(sub)}</div>` : ""}`
     : `<div class="stat-dash"></div>`
   return `<div class="stat-card"><div class="stat-label">${tip(label)}</div>${inner}</div>`
 }
@@ -675,20 +675,49 @@ function renderGeminiEvent(event, accent) {
       .join(" ")
   }
 
-  // Resolution rules — for head-to-head (2-outcome, non-binary), auto-generate if description is bare
+  // Resolution rules — auto-generate if description provides no rules
   const ruleSentences = desc ? plainEnglishRules(desc).slice(0, 8) : []
   const isHeadToHead = !isBinary && contracts.length === 2
-  if (isHeadToHead && ruleSentences.length === 0 && contractNames.length === 2) {
-    const [a, b] = contractNames
-    ruleSentences.push(
-      `Pick which team wins: ${a} or ${b}`,
-      `If ${a} wins the game, the "${a}" contract resolves YES and pays $1`,
-      `If ${b} wins the game, the "${b}" contract resolves YES and pays $1`,
-      `The losing team's contract resolves NO and expires worthless`
-    )
-    if (!betExplainerText) {
-      betExplainerText = `Bet on the winner: ${a} or ${b}. Each contract pays $1 if your team wins. Only one side can win — the other expires at $0.`
+  if (ruleSentences.length === 0) {
+    if (isBinary) {
+      const title = event.title || "this event"
+      ruleSentences.push(
+        `YES or NO market: will ${title} happen?`,
+        `If it does, the YES contract resolves to $1 — you collect $1 per contract held`,
+        `If it does not, the YES contract expires at $0 and NO pays out instead`,
+        `Only one side wins — hold the right contract to collect $1`
+      )
+      if (!betExplainerText) {
+        betExplainerText = `Bet YES if you think it happens, NO if you think it doesn't. Winning contract pays $1.`
+      }
+    } else if (isHeadToHead && contractNames.length === 2) {
+      const [a, b] = contractNames
+      ruleSentences.push(
+        `Pick which side wins: ${a} or ${b}`,
+        `If ${a} wins, the "${a}" contract resolves YES and pays $1`,
+        `If ${b} wins, the "${b}" contract resolves YES and pays $1`,
+        `The losing side's contract resolves NO and expires worthless`
+      )
+      if (!betExplainerText) {
+        betExplainerText = `Bet on the winner: ${a} or ${b}. Each contract pays $1 if your side wins. Only one side can win — the other expires at $0.`
+      }
+    } else if (!isBinary && contracts.length > 2 && contractNames.length > 0) {
+      const listed = contractNames.slice(0, 3).join(", ")
+      const more = contractNames.length > 3 ? `, and ${contractNames.length - 3} more` : ""
+      ruleSentences.push(
+        `Pick one outcome from ${contracts.length} options: ${listed}${more}`,
+        `The contract matching the actual result resolves YES and pays $1`,
+        `All other contracts resolve NO and expire worthless`,
+        `Only one outcome can win`
+      )
+      if (!betExplainerText) {
+        betExplainerText = `Pick the winning outcome from ${contracts.length} choices. The correct contract pays $1; all others expire at $0.`
+      }
     }
+  }
+  // Append closing date to rules when we have a known expiry
+  if (ruleSentences.length > 0 && expiryIso) {
+    ruleSentences.push(`Trading closes ${fmtDate(expiryIso)}`)
   }
 
   // Bet sim
@@ -728,7 +757,10 @@ function renderGeminiEvent(event, accent) {
       ${statCard("VOLUME TRADED", totalVol ? `$${totalVol}` : null)}
       ${statCard("LIQUIDITY", totalLiq ? `$${totalLiq}` : null)}
       ${statCard("OPEN INTEREST", totalOI ? `$${totalOI}` : null)}
-      ${statCard("RUNNERS", contracts.length > 0 ? String(contracts.length) : null)}
+      ${statCard("RUNNERS", contracts.length > 0 ? String(contracts.length) : null,
+          contractNames.length > 0
+            ? contractNames.slice(0, 5).join(" · ") + (contractNames.length > 5 ? " ···" : "")
+            : "")}
     </div>
 
     ${ruleSentences.length ? `
