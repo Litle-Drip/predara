@@ -376,14 +376,26 @@ function renderKalshiEvent(ev, accent) {
   })
   const outcomesHtml = buildOutcomesHtml(allRows)
 
-  // Aggregate stats — all *_fp fields are in cents (fixed-point); divide by 100 for dollars
   // Aggregate stats — always use allMarkets (full event) not filtered display markets
-  // Prefer event-level volume_fp; fall back to summing all markets
+  //
+  // volume_fp unit detection: Kalshi is inconsistent.
+  // Event-level ev.volume_fp can be:
+  //   - fixed-point cents (very large, e.g. 6,753,558,700 for $67.5M) → divide by 100
+  //   - already dollars (smaller, e.g. 21,900,451 for $21.9M) → use directly
+  // Heuristic: values > 1e8 are almost certainly cents; otherwise treat as dollars.
+  // Market-level m.volume_fp is consistently in cents → always divide by 100.
+  function parseEventFP(val) {
+    const n = parseFloat(val || 0)
+    return n > 1e8 ? n / 100 : n
+  }
+  console.debug("[Predara] volume_fp ev:", ev.volume_fp, "allMarkets count:", allMarkets.length,
+    "sample market volume_fp:", allMarkets[0]?.volume_fp)
+
   const totalVol   = fmtNum(ev.volume_fp != null
-    ? parseFloat(ev.volume_fp) / 100
+    ? parseEventFP(ev.volume_fp)
     : allMarkets.reduce((s, m) => s + parseFloat(m.volume_fp || 0), 0) / 100)
   const totalVol24 = fmtNum(ev.volume_24h_fp != null
-    ? parseFloat(ev.volume_24h_fp) / 100
+    ? parseEventFP(ev.volume_24h_fp)
     : allMarkets.reduce((s, m) => {
         if (m.volume_24h_fp) return s + parseFloat(m.volume_24h_fp) / 100
         return s + parseFloat(m.volume_24h || 0)
