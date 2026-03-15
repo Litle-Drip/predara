@@ -995,8 +995,11 @@ async function analyze() {
 
   // Expand a bare Gemini ticker (e.g. "NBA-2603151930-DET-TOR-M") to a full URL
   const geminiTickerRe = /^[A-Z][A-Z0-9]*(-[A-Z0-9]+){2,}$/i
+  console.log("[debug] raw url:", JSON.stringify(url))
+  console.log("[debug] ticker regex test:", geminiTickerRe.test(url))
   if (geminiTickerRe.test(url)) {
     url = `https://www.gemini.com/predictions/${url.toUpperCase()}`
+    console.log("[debug] expanded to:", url)
   }
 
   const lowerUrl = url.toLowerCase()
@@ -1005,6 +1008,7 @@ async function analyze() {
   else if (lowerUrl.includes("polymarket")) platform = "polymarket"
   else if (lowerUrl.includes("coinbase"))   platform = "coinbase"
   else if (lowerUrl.includes("gemini"))     platform = "gemini"
+  console.log("[debug] platform:", platform)
 
   const accent = (PLATFORMS[platform] || {}).accent || "#555"
 
