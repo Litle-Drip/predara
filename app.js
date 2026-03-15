@@ -301,7 +301,7 @@ function buildOutcomesHtml(rows) {
     </div>`
 }
 
-function renderKalshiEvent(ev, accent) {
+function renderKalshiEvent(ev, accent, platformKey = "kalshi") {
   const markets = (ev.markets || []).filter(m => m.yes_sub_title)
   if (!markets.length) return `<div class="mi-error">No outcome data available for this market.</div>`
   const first = markets[0] || {}
@@ -443,7 +443,7 @@ function renderKalshiEvent(ev, accent) {
     <div class="mi-card">
       <div class="event-head">
         <div class="event-tags">
-          <span class="tag-platform">${esc(PLATFORMS.kalshi.label)}</span>
+          <span class="tag-platform" style="background:${accent}">${esc((PLATFORMS[platformKey] || PLATFORMS.kalshi).label)}</span>
           <span class="tag-cat">${esc(category.toUpperCase())}</span>
           ${exclusiveTag}
           <span class="tag-status">
@@ -488,7 +488,7 @@ function renderKalshiEvent(ev, accent) {
   `
 }
 
-function renderPolymarketEvent(event, markets, accent) {
+function renderPolymarketEvent(event, markets, accent, platformKey = "polymarket") {
   const statusDot  = event.closed ? "dot-red" : "dot-green"
   const statusText = event.closed ? "CLOSED" : "OPEN"
 
@@ -615,7 +615,7 @@ function renderPolymarketEvent(event, markets, accent) {
     <div class="mi-card">
       <div class="event-head">
         <div class="event-tags">
-          <span class="tag-platform" style="background:${accent}">${esc(PLATFORMS.polymarket.label)}</span>
+          <span class="tag-platform" style="background:${accent}">${esc((PLATFORMS[platformKey] || PLATFORMS.polymarket).label)}</span>
           ${tagsHtml}
           <span class="tag-status"><span class="${statusDot}">●</span> ${esc(statusText)}</span>
         </div>
@@ -674,7 +674,7 @@ async function analyze() {
   const btn = document.querySelector(".search-row button")
 
   if (!url) {
-    showError("Paste a Kalshi or Polymarket URL to analyze.")
+    showError("Paste a Kalshi, Polymarket, Gemini, or Coinbase URL to analyze.")
     return
   }
 
@@ -704,11 +704,18 @@ async function analyze() {
 
   const accent = (PLATFORMS[platform] || {}).accent || "#555"
 
-  if (platform === "polymarket") {
+  if (platform === "polymarket" || platform === "coinbase") {
     try {
-      const eventPart = url.split("/event/")[1]
-      if (!eventPart) throw new Error("Invalid Polymarket URL. Expected: polymarket.com/event/<slug>")
-      const slug = eventPart.split("?")[0].split("#")[0].replace(/\/$/, "")
+      let slug = ""
+      if (platform === "polymarket") {
+        const eventPart = url.split("/event/")[1]
+        if (!eventPart) throw new Error("Invalid Polymarket URL. Expected: polymarket.com/event/<slug>")
+        slug = eventPart.split("?")[0].split("#")[0].replace(/\/$/, "")
+      } else {
+        const cleanPath = url.split("?")[0].split("#")[0].replace(/\/$/, "")
+        slug = cleanPath.split("/").pop()
+        if (!slug) throw new Error("Invalid Coinbase URL. Could not extract market slug.")
+      }
 
       const res = await fetch(`/api/polymarket?slug=${encodeURIComponent(slug)}`)
       if (!res.ok) throw new Error(`API error ${res.status}`)
@@ -719,7 +726,7 @@ async function analyze() {
       const markets = event.markets || []
       if (!markets.length) throw new Error("No market data found.")
 
-      result.innerHTML = renderPolymarketEvent(event, markets, accent)
+      result.innerHTML = renderPolymarketEvent(event, markets, accent, platform)
     } catch (err) {
       console.error(err)
       showError(`ERROR: ${err.message}`)
@@ -727,20 +734,27 @@ async function analyze() {
       resetBtn()
     }
 
-  } else if (platform === "kalshi") {
+  } else if (platform === "kalshi" || platform === "gemini") {
     try {
-      if (!url.includes("/markets/") && !url.includes("/events/")) {
-        throw new Error("Invalid Kalshi URL.")
+      let ticker = ""
+      if (platform === "kalshi") {
+        if (!url.includes("/markets/") && !url.includes("/events/")) {
+          throw new Error("Invalid Kalshi URL.")
+        }
+        const cleanPath = url.split("?")[0].split("#")[0].replace(/\/$/, "")
+        ticker = cleanPath.split("/").pop().toUpperCase()
+      } else {
+        const cleanPath = url.split("?")[0].split("#")[0].replace(/\/$/, "")
+        ticker = cleanPath.split("/").pop().toUpperCase()
+        if (!ticker) throw new Error("Invalid Gemini URL. Could not extract market ticker.")
       }
-      const cleanPath = url.split("?")[0].split("#")[0].replace(/\/$/, "")
-      const ticker = cleanPath.split("/").pop().toUpperCase()
 
       const res = await fetch(`/api/kalshi?ticker=${encodeURIComponent(ticker)}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || `API error ${res.status}`)
 
       if (data.event) {
-        result.innerHTML = renderKalshiEvent(data.event, accent)
+        result.innerHTML = renderKalshiEvent(data.event, accent, platform)
       } else if (data.market) {
         const m = data.market
         const fakeEvent = {
@@ -750,7 +764,7 @@ async function analyze() {
           markets: [m],
           product_metadata: {},
         }
-        result.innerHTML = renderKalshiEvent(fakeEvent, accent)
+        result.innerHTML = renderKalshiEvent(fakeEvent, accent, platform)
       } else {
         throw new Error("Unexpected API response.")
       }
@@ -762,7 +776,7 @@ async function analyze() {
     }
 
   } else {
-    showError("Unrecognized URL · Paste a Kalshi or Polymarket link.")
+    showError("Unrecognized URL · Paste a Kalshi, Polymarket, Gemini, or Coinbase link.")
     resetBtn()
   }
 }
