@@ -558,9 +558,10 @@ function renderGeminiEvent(event, accent) {
   if (isBinary && contracts.length === 1) {
     // Binary: show YES and NO from a single contract price
     const c = contracts[0]
-    const price = parseFloat(c.lastPrice || c.price || c.bestAsk || 0)
-    const bid   = parseFloat(c.bestBid || c.bid || price)
-    const ask   = parseFloat(c.bestAsk || c.ask || price)
+    const cp    = c.prices || {}
+    const price = parseFloat(cp.lastTradePrice || cp.bestAsk || cp.bestBid || c.lastPrice || c.price || c.bestAsk || 0)
+    const bid   = parseFloat(cp.bestBid || c.bestBid || c.bid || price)
+    const ask   = parseFloat(cp.bestAsk || c.bestAsk || c.ask || price)
     const pctYes = Math.round(price * 100)
     const pctNo  = 100 - pctYes
     const extras = Number.isFinite(bid) && Number.isFinite(ask) && ask > 0
@@ -571,16 +572,18 @@ function renderGeminiEvent(event, accent) {
     if (ask > 0) analyticsCandidates.push({ prob: price, label: "YES", ask, bid: bid || price })
   } else {
     contracts.forEach((c, idx) => {
-      const rawName = c.title || c.name || c.instrumentSymbol || `Outcome ${idx + 1}`
+      const rawName = c.title || c.description || c.name || c.instrumentSymbol || `Outcome ${idx + 1}`
       // Extract human-readable name from contract symbols like GEMI-TPC2026WIN-ABERG
       let name = rawName
       const symbolMatch = rawName.match(/^[A-Z]+-[A-Z0-9]+-(.+)$/)
       if (symbolMatch) {
         name = symbolMatch[1].charAt(0).toUpperCase() + symbolMatch[1].slice(1).toLowerCase()
       }
-      const price = parseFloat(c.lastPrice || c.midpoint || c.mid || c.price || c.bestAsk || 0)
-      const bid   = parseFloat(c.bestBid || c.bid || price)
-      const ask   = parseFloat(c.bestAsk || c.ask || price)
+      // Gemini nests prices under c.prices.{lastTradePrice,bestBid,bestAsk}
+      const cp    = c.prices || {}
+      const price = parseFloat(cp.lastTradePrice || cp.bestAsk || cp.bestBid || c.lastPrice || c.midpoint || c.mid || c.price || c.bestAsk || 0)
+      const bid   = parseFloat(cp.bestBid || c.bestBid || c.bid || price)
+      const ask   = parseFloat(cp.bestAsk || c.bestAsk || c.ask || price)
       const pct   = Math.round(price * 100)
       const extras = {}
       if (Number.isFinite(bid) && Number.isFinite(ask) && ask > 0) {
