@@ -209,12 +209,21 @@ function normalizeKalshi(ev, platformKey = "kalshi") {
       : `Bet on which outcome will happen for ${eventName}. You win if your chosen outcome is correct.${ev.mutually_exclusive ? " Only one outcome can win — winner takes all." : ""}`
   }
 
-  // Resolution sources
+  // Resolution sources — prefer structured settlement_sources, fall back to URLs in rules text
   const rawSources = first.settlement_sources || ev.settlement_sources || []
   const validSources = rawSources.filter(s => {
     const url = typeof s === "string" ? s : s?.url
     try { const u = new URL(url); return u.protocol === "http:" || u.protocol === "https:" } catch { return false }
   })
+  if (!validSources.length) {
+    const rulesText = [first.rules_primary, first.rules_secondary].filter(Boolean).join(" ")
+    const seen = new Set()
+    ;(rulesText.match(/https?:\/\/[^\s\),"'<>]+/g) || []).forEach(url => {
+      if (seen.has(url)) return
+      seen.add(url)
+      try { const u = new URL(url); if (u.protocol === "http:" || u.protocol === "https:") validSources.push(url) } catch {}
+    })
+  }
   const resSourceHtml = validSources.length
     ? `<div class="info-row" style="border-bottom:none"><span class="info-key">Resolution source${validSources.length > 1 ? "s" : ""}</span><span class="info-val">${
         validSources.map(s => {
