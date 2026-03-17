@@ -275,8 +275,6 @@ async function analyze() {
 
       if (data.event) {
         data.event._allMarkets = [...(data.event.markets || [])]
-        const _dbgM = (data.event.markets || [])[0] || {}
-        console.debug("[kalshi debug] settlement_sources:", _dbgM.settlement_sources, "| rules_primary:", _dbgM.rules_primary?.slice?.(0,120), "| rules_secondary:", _dbgM.rules_secondary?.slice?.(0,120))
 
         if (ticker !== eventTicker && data.event.markets && !data.event.mutually_exclusive) {
           const specific = data.event.markets.filter(m => m.ticker?.toUpperCase() === ticker)
@@ -292,6 +290,7 @@ async function analyze() {
           category: "Markets",
           markets: [m],
           product_metadata: {},
+          series_ticker: m.series_ticker,
         }
         result.innerHTML = renderKalshiEvent(fakeEvent, accent)
         addShareBar(url)
