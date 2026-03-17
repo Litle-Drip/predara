@@ -22,7 +22,7 @@
 //   leadPct:       number,
 //   betExplainerText: string,
 //   ruleSentences: string[],
-//   resSourceHtml: string,   // pre-rendered HTML or "" (Polymarket only)
+//   resSourceHtml: string,   // pre-rendered HTML or ""
 // }
 //
 // NormalizedOutcome shape:
@@ -394,6 +394,27 @@ function normalizeGemini(event) {
     ruleSentences.push(`Trading closes ${fmtDate(expiryIso)}`)
   }
 
+  // Resolution sources — Gemini wraps Kalshi data so check both field shapes
+  const geminiRawSources = event.settlement_sources || event.settlementSources || []
+  const geminiSingleUrl  = event.resolutionSource || event.resolution_source ||
+    (contracts[0] && (contracts[0].resolutionSource || contracts[0].resolution_source)) || ""
+  const geminiSources = Array.isArray(geminiRawSources) && geminiRawSources.length
+    ? geminiRawSources
+    : geminiSingleUrl ? [geminiSingleUrl] : []
+  const geminiValidSources = geminiSources.filter(s => {
+    const url = typeof s === "string" ? s : s?.url
+    try { const u = new URL(url); return u.protocol === "http:" || u.protocol === "https:" } catch { return false }
+  })
+  const resSourceHtml = geminiValidSources.length
+    ? `<div class="info-row" style="border-bottom:none"><span class="info-key">Resolution source${geminiValidSources.length > 1 ? "s" : ""}</span><span class="info-val">${
+        geminiValidSources.map(s => {
+          const url  = typeof s === "string" ? s : s.url
+          const name = typeof s === "object" && s.name ? s.name : url.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0]
+          return `<a href="${esc(url)}" target="_blank" rel="noopener" style="color:var(--orange)">${esc(name)}</a>`
+        }).join(" · ")
+      }</span></div>`
+    : ""
+
   return {
     platform: "gemini",
     title: event.title || "Gemini Prediction Market",
@@ -420,7 +441,7 @@ function normalizeGemini(event) {
     leadPct,
     betExplainerText,
     ruleSentences,
-    resSourceHtml: "",
+    resSourceHtml,
   }
 }
 
