@@ -48,7 +48,7 @@ function geminiExtractPrice(c) {
 // "GEMI-TPC2026WIN-ABERG" → "Aberg"
 // Previously duplicated twice in renderGeminiEvent.
 function geminiExtractName(c, fallback) {
-  const rawName = [c.title, c.name, c.instrumentSymbol, c.description, c.ticker]
+  const rawName = [c.label, c.title, c.name, c.instrumentSymbol, c.ticker]
     .find(v => typeof v === "string" && v.trim()) || fallback
   if (!rawName.includes("-")) return rawName
   const parts = rawName.split("-")
@@ -360,9 +360,10 @@ function normalizeGemini(event) {
 
   // Stats
   const contractLiq = contracts.reduce((s, c) => s + parseFloat(c.liquidity || c.notionalLiquidity || 0), 0)
-  const totalVol = fmtNum(parseFloat(event.volume || event.notionalVolume || 0))
-  const totalLiq = fmtNum(parseFloat(event.liquidity || contractLiq || 0))
-  const totalOI  = fmtNum(parseFloat(event.openInterest || 0))
+  const totalVol   = fmtNum(parseFloat(event.volume || event.notionalVolume || 0))
+  const totalVol24 = fmtNum(parseFloat(event.volume24h || event.volume24Hr || 0))
+  const totalLiq   = fmtNum(parseFloat(event.liquidity || event.notionalLiquidity || contractLiq || 0))
+  const totalOI    = fmtNum(parseFloat(event.openInterest || event.notionalOpenInterest || 0))
   const contractNames = contracts.map((c, i) => geminiExtractName(c, `Outcome ${i + 1}`)).filter(Boolean)
 
   // Tags
@@ -469,8 +470,12 @@ function normalizeGemini(event) {
     const url = typeof s === "string" ? s : s?.url
     try { const u = new URL(url); return u.protocol === "http:" || u.protocol === "https:" } catch { return false }
   })
-  if (!geminiValidSources.length && event._contract_url) {
-    geminiValidSources = [{ url: event._contract_url, name: "Read full contract terms & conditions (PDF)" }]
+  const directTermsUrl = event.termsLink
+    || (contracts[0] && contracts[0].termsAndConditionsUrl)
+    || event._contract_url
+    || null
+  if (!geminiValidSources.length && directTermsUrl) {
+    geminiValidSources = [{ url: directTermsUrl, name: "Read full contract terms & conditions" }]
   }
   const resSourceHtml = geminiValidSources.length
     ? `<div class="info-row" style="border-bottom:none"><span class="info-key">Resolution source${geminiValidSources.length > 1 ? "s" : ""}</span><span class="info-val">${
@@ -494,6 +499,7 @@ function normalizeGemini(event) {
     outcomes,
     stats: [
       { label: "VOLUME TRADED", value: totalVol ? `$${totalVol}` : null },
+      { label: "24H VOLUME",    value: totalVol24 ? `$${totalVol24}` : null },
       { label: "LIQUIDITY",     value: totalLiq ? `$${totalLiq}` : null },
       { label: "OPEN INTEREST", value: totalOI ? `$${totalOI}` : null },
       {

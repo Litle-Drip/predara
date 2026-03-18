@@ -123,7 +123,13 @@ module.exports = async (req, res) => {
     return res.status(502).json({ error: "Invalid response from Gemini API" })
   }
 
-  if (contractUrl) data._contract_url = contractUrl
+  // Prefer the contract URL sourced directly from the API (termsLink / termsAndConditionsUrl),
+  // then fall back to whatever Builder.io scraping found.
+  const directTerms = (data && data.termsLink)
+    || (Array.isArray(data && data.contracts) && data.contracts[0] && data.contracts[0].termsAndConditionsUrl)
+    || null
+  if (directTerms) data._contract_url = directTerms
+  else if (contractUrl) data._contract_url = contractUrl
 
   return res.status(200).json(data)
 }
