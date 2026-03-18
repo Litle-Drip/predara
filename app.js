@@ -320,7 +320,9 @@ async function analyze() {
         throw new Error("Invalid Gemini URL. Expected: gemini.com/prediction-markets/<ticker>")
       }
 
-      const res = await fetch(`/api/gemini?ticker=${encodeURIComponent(ticker)}`)
+      const geminiParams = new URLSearchParams({ ticker })
+      if (url.startsWith("https://") || url.startsWith("http://")) geminiParams.set("pageUrl", url)
+      const res = await fetch(`/api/gemini?${geminiParams}`)
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}))
         if (res.status === 404) {

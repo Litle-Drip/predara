@@ -413,10 +413,13 @@ function normalizeGemini(event) {
   const geminiSources = Array.isArray(geminiRawSources) && geminiRawSources.length
     ? geminiRawSources
     : geminiSingleUrl ? [geminiSingleUrl] : []
-  const geminiValidSources = geminiSources.filter(s => {
+  let geminiValidSources = geminiSources.filter(s => {
     const url = typeof s === "string" ? s : s?.url
     try { const u = new URL(url); return u.protocol === "http:" || u.protocol === "https:" } catch { return false }
   })
+  if (!geminiValidSources.length && event._contract_url) {
+    geminiValidSources = [{ url: event._contract_url, name: "Read full contract terms & conditions (PDF)" }]
+  }
   const resSourceHtml = geminiValidSources.length
     ? `<div class="info-row" style="border-bottom:none"><span class="info-key">Resolution source${geminiValidSources.length > 1 ? "s" : ""}</span><span class="info-val">${
         geminiValidSources.map(s => {
