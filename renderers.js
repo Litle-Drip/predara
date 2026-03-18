@@ -30,7 +30,7 @@ function renderMarket(norm, accent) {
 
   const platformLabel = (PLATFORMS[norm.platform] || {}).label || norm.platform.toUpperCase()
   const hasRules = norm.ruleSentences.length > 0
-  const hasTimeline = norm.hasTimeline || !!norm.resSourceHtml
+  const hasTimeline = norm.hasTimeline
 
   return `
     <div class="mi-card">
@@ -60,6 +60,11 @@ function renderMarket(norm, accent) {
     <div class="mi-card">
       <div class="section-label">TIMELINE</div>
       ${norm.timelineRows}
+    </div>` : ""}
+
+    ${norm.resSourceHtml ? `
+    <div class="mi-card">
+      <div class="section-label">RESOLUTION SOURCES</div>
       ${norm.resSourceHtml}
     </div>` : ""}
 

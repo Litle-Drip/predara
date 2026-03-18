@@ -58,6 +58,24 @@ function geminiExtractName(c, fallback) {
   return lastPart ? lastPart.charAt(0).toUpperCase() + lastPart.slice(1) : rawName
 }
 
+// Keep resolution source link labels concise and readable.
+// Some provider payloads include entire terms text as `name`, which can flood the UI.
+function sourceLabel(source, fallback = "Resolution source") {
+  const url = typeof source === "string" ? source : source?.url || ""
+  const rawName = typeof source === "object" && typeof source.name === "string"
+    ? source.name.trim()
+    : ""
+  const cleanName = rawName.replace(/\s+/g, " ").trim()
+  const looksVerbose = cleanName.length > 90 || /terms|conditions|agreement|disclaimer/i.test(cleanName)
+  if (cleanName && !looksVerbose) return cleanName
+  try {
+    const u = new URL(url)
+    return u.hostname.replace(/^www\./, "")
+  } catch {
+    return fallback
+  }
+}
+
 // ── normalizeKalshi ────────────────────────────────────────────────────────────
 function normalizeKalshi(ev, platformKey = "kalshi") {
   const markets    = (ev.markets || []).filter(m => m.yes_sub_title)
@@ -231,7 +249,7 @@ function normalizeKalshi(ev, platformKey = "kalshi") {
     ? `<div class="info-row" style="border-bottom:none"><span class="info-key">Resolution source${validSources.length > 1 ? "s" : ""}</span><span class="info-val">${
         validSources.map(s => {
           const url  = typeof s === "string" ? s : s.url
-          const name = typeof s === "object" && s.name ? s.name : url.replace(/^https?:\/\//, "").replace(/\/$/, "").split("/")[0]
+          const name = sourceLabel(s)
           return `<a href="${esc(url)}" target="_blank" rel="noopener" style="color:var(--orange)">${esc(name)}</a>`
         }).join(" · ")
       }</span></div>`
@@ -435,7 +453,7 @@ function normalizeGemini(event) {
     ? `<div class="info-row" style="border-bottom:none"><span class="info-key">Resolution source${geminiValidSources.length > 1 ? "s" : ""}</span><span class="info-val">${
         geminiValidSources.map(s => {
           const url  = typeof s === "string" ? s : s.url
-          const name = typeof s === "object" && s.name ? s.name : url.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0]
+          const name = sourceLabel(s)
           return `<a href="${esc(url)}" target="_blank" rel="noopener" style="color:var(--orange)">${esc(name)}</a>`
         }).join(" · ")
       }</span></div>`
