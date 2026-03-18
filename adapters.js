@@ -279,7 +279,7 @@ function normalizeKalshi(ev, platformKey = "kalshi") {
     : ""
 
   // Rules
-  const rulesRaw = first.rules_secondary || (!isMultiOutcome ? first.rules_primary : "") || ""
+  const rulesRaw = first.rules_secondary || first.rules_primary || ""
   const ruleSentences = plainEnglishRules(rulesRaw)
 
   // Tags
@@ -573,8 +573,9 @@ function normalizePolymarket(event, markets, platformKey = "polymarket") {
   const tagsHtml = tags
     .filter(t => t != null)
     .map(t => {
-      const col = categoryColor(String(t))
-      return `<span class="tag-cat" style="color:${col};border-color:${col};background:${col}1a">${esc(String(t).toUpperCase())}</span>`
+      const label = t.label || t.slug || String(t)
+      const col = categoryColor(label)
+      return `<span class="tag-cat" style="color:${col};border-color:${col};background:${col}1a">${esc(label.toUpperCase())}</span>`
     }).join("")
 
   analyticsSource.sort((a, b) => b.prob - a.prob)
@@ -637,7 +638,7 @@ function normalizePolymarket(event, markets, platformKey = "polymarket") {
   const timelineRows = [
     infoRow("Start date", fmtDate(event.startDate)),
     infoRow("End date", fmtDate(event.endDate)),
-    infoRow("Expected resolution", fmtDate(event.resolutionDate)),
+    infoRow("Expected resolution", fmtDate(event.closedTime || event.endDate)),
   ].join("")
   const hasTimeline = !!event.endDate
 

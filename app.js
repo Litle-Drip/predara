@@ -341,7 +341,7 @@ async function analyze() {
         throw new Error(errData.error || `Gemini API error ${res.status}`)
       }
       const data = await res.json()
-      if (!data || !data.title) throw new Error("No event data returned.")
+      if (!data || (!data.title && !data.contracts && !data.ticker)) throw new Error("No event data returned.")
       console.log("[gemini debug] type:", data.type, "contracts:", JSON.stringify((data.contracts || []).map(c => ({ ticker: c.ticker, title: c.title, name: c.name, type: c.type, result: c.result, probability: c.probability, price: c.price, lastPrice: c.lastPrice, currentPrice: c.currentPrice, status: c.status, prices: c.prices, settlement: c.settlement }))))
       console.log("[gemini debug] _contract_url:", data._contract_url)
 
