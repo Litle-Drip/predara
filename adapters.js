@@ -31,14 +31,22 @@
 // ── Gemini price extraction ────────────────────────────────────────────────────
 // Consolidates all known field variants into a single function.
 // Previously duplicated twice in renderGeminiEvent with 13+ fallback levels.
+// Prefers live bid/ask midpoint over potentially stale lastTradePrice, so the
+// displayed probability tracks the current market rather than an old trade.
 function geminiExtractPrice(c) {
   const cp = c.prices || {}
+  // Current live bid/ask midpoint is the most accurate market probability
+  const bid = parseFloat(cp.bestBid || cp.bid || c.bestBid || c.bid || 0) || 0
+  const ask = parseFloat(cp.bestAsk || cp.ask || c.bestAsk || c.ask || 0) || 0
+  if (bid > 0 && ask > 0) return (bid + ask) / 2
+  // Fall back to theoretical fair-value fields, then stale last-trade price
   return parseFloat(
-    cp.lastTradePrice || cp.last || cp.mark || cp.mid || cp.close ||
-    cp.bestAsk || cp.bestBid || cp.ask || cp.bid ||
+    cp.mark || cp.mid ||
+    cp.lastTradePrice || cp.last || cp.close ||
     c.lastPrice || c.currentPrice || c.lastSalePrice ||
     c.midpoint || c.mid || c.mark || c.price ||
-    c.bestAsk || c.ask || c.probability || 0
+    c.bestAsk || c.ask || c.probability ||
+    ask || bid || 0
   )
 }
 
